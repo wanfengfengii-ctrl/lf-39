@@ -21,6 +21,18 @@ class ExperimentRecordOut(BaseModel):
     time_error: Optional[float] = None
 
 
+class VesselRecordOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    vessel_id: int
+    time_point: float
+    water_level: float
+    computed_flow_rate: Optional[float] = None
+    time_error: Optional[float] = None
+    inflow_rate: Optional[float] = None
+
+
 class ExperimentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -31,4 +43,6 @@ class ExperimentOut(BaseModel):
     status: str
     needs_recheck: bool
     total_error: Optional[float] = None
+    is_multi_vessel: bool = False
     records: List[ExperimentRecordOut] = []
+    vessel_records: List[VesselRecordOut] = []

@@ -11,6 +11,7 @@ from schemas import (
     ClepsydraConfigUpdate, ClepsydraConfigOut,
     ScaleSchemeUpdate, ScaleSchemeOut, ScaleMarkOut,
     ExperimentOut, ExperimentRecordCreate, ExperimentRecordOut,
+    VesselRecordOut,
 )
 from services.validation_service import ValidationService, ValidationError
 
@@ -32,6 +33,7 @@ class ProjectService:
                 created_at=p.created_at,
                 status=p.status,
                 needs_recheck=p.needs_recheck,
+                is_multi_vessel=p.is_multi_vessel,
                 experiment_count=exp_count,
                 last_round=last_round,
             )
@@ -87,6 +89,7 @@ class ProjectService:
             created_at=project.created_at,
             status=project.status,
             needs_recheck=project.needs_recheck,
+            is_multi_vessel=project.is_multi_vessel,
             experiment_count=0,
         )
 
@@ -262,6 +265,18 @@ class ProjectService:
                 )
                 for r in exp.records
             ]
+            vessel_records = [
+                VesselRecordOut(
+                    id=r.id,
+                    vessel_id=r.vessel_id,
+                    time_point=r.time_point,
+                    water_level=r.water_level,
+                    computed_flow_rate=r.computed_flow_rate,
+                    time_error=r.time_error,
+                    inflow_rate=r.inflow_rate,
+                )
+                for r in exp.vessel_records
+            ]
             result.append(ExperimentOut(
                 id=exp.id,
                 round_number=exp.round_number,
@@ -270,7 +285,9 @@ class ProjectService:
                 status=exp.status,
                 needs_recheck=exp.needs_recheck,
                 total_error=exp.total_error,
+                is_multi_vessel=getattr(exp, 'is_multi_vessel', False),
                 records=records,
+                vessel_records=vessel_records,
             ))
         return result
 

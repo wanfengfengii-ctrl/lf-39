@@ -1,16 +1,18 @@
 from __future__ import annotations
 
-from typing import Annotated, Optional
+from typing import Annotated, Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Form, Request
 from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
-from services import ProjectService, ValidationError, AnalysisService
+from services import ProjectService, ValidationError, AnalysisService, MultiVesselService
 from schemas import (
     ProjectCreate, ClepsydraConfigUpdate, ScaleSchemeUpdate,
     ExperimentRecordCreate, ScaleMarkData,
+    VesselCreate, VesselUpdate, VesselFlowRelationCreate,
+    VesselBatchRecordCreate,
 )
 
 router = APIRouter(prefix="/api", tags=["projects"])
@@ -218,3 +220,247 @@ async def toggle_recheck(
     except ValidationError as e:
         return _handle_validation_error(e)
     return {"ok": True}
+
+
+# ============ 多级漏刻 API ============
+
+@router.get("/projects/{project_id}/multi-vessel")
+async def get_multi_vessel_config(project_id: int, db: Session = Depends(get_db)):
+    try:
+        cfg = MultiVesselService.get_config(db, project_id)
+    except ValidationError as e:
+        return _handle_validation_error(e)
+    return {"ok": True, "config": cfg.model_dump(mode="json")}
+
+
+@router.post("/projects/{project_id}/multi-vessel/enable")
+async def enable_multi_vessel(
+    project_id: int, request: Request, db: Session = Depends(get_db)
+):
+    try:
+        payload = await request.json()
+        enabled = bool(payload.get("enabled", True))
+        MultiVesselService.enable_multi_vessel(db, project_id, enabled)
+    except ValidationError as e:
+        return _handle_validation_error(e)
+    return {"ok": True}
+
+
+@router.post("/projects/{project_id}/multi-vessel/vessels")
+async def add_vessel(
+    project_id: int, request: Request, db: Session = Depends(get_db)
+):
+    try:
+        payload = await request.json()
+        data = VesselCreate(**payload)
+    except Exception as e:
+        return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
+    try:
+        vessel = MultiVesselService.add_vessel(db, project_id, data)
+    except ValidationError as e:
+        return _handle_validation_error(e)
+    return {"ok": True, "vessel": vessel.model_dump()}
+
+
+@router.put("/projects/{project_id}/multi-vessel/vessels/{vessel_id}")
+async def update_vessel(
+    project_id: int, vessel_id: int,
+    request: Request, db: Session = Depends(get_db)
+):
+    try:
+        payload = await request.json()
+        data = VesselUpdate(**payload)
+    except Exception as e:
+        return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
+    try:
+        vessel = MultiVesselService.update_vessel(db, project_id, vessel_id, data)
+    except ValidationError as e:
+        return _handle_validation_error(e)
+    return {"ok": True, "vessel": vessel.model_dump()}
+
+
+@router.delete("/projects/{project_id}/multi-vessel/vessels/{vessel_id}")
+async def delete_vessel(project_id: int, vessel_id: int, db: Session = Depends(get_db)):
+    ok = MultiVesselService.delete_vessel(db, project_id, vessel_id)
+    if not ok:
+        return JSONResponse(status_code=422, content={"ok": False, "error": "容器不存在"})
+    return {"ok": True}
+
+
+@router.post("/projects/{project_id}/multi-vessel/relations")
+async def add_flow_relation(
+    project_id: int, request: Request, db: Session = Depends(get_db)
+):
+    try:
+        payload = await request.json()
+        data = VesselFlowRelationCreate(**payload)
+    except Exception as e:
+        return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
+    try:
+        rel = MultiVesselService.add_flow_relation(db, project_id, data)
+    except ValidationError as e:
+        return _handle_validation_error(e)
+    return {"ok": True, "relation": rel.model_dump()}
+
+
+@router.delete("/projects/{project_id}/multi-vessel/relations/{relation_id}")
+async def delete_flow_relation(
+    project_id: int, relation_id: int, db: Session = Depends(get_db)
+):
+    ok = MultiVesselService.delete_flow_relation(db, project_id, relation_id)
+    if not ok:
+        return JSONResponse(status_code=422, content={"ok": False, "error": "关联不存在"})
+    return {"ok": True}
+
+
+@router.get("/projects/{project_id}/multi-vessel/vessels/{vessel_id}/scale")
+async def get_vessel_scale(project_id: int, vessel_id: int, db: Session = Depends(get_db)):
+    try:
+        scheme = MultiVesselService.get_vessel_scale_scheme(db, project_id, vessel_id)
+    except ValidationError as e:
+        return _handle_validation_error(e)
+    return {"ok": True, "scheme": scheme.model_dump(mode="json") if scheme else None}
+
+
+@router.post("/projects/{project_id}/multi-vessel/vessels/{vessel_id}/scale")
+async def update_vessel_scale(
+    project_id: int, vessel_id: int,
+    request: Request, db: Session = Depends(get_db)
+):
+    try:
+        payload = await request.json()
+        marks_data = payload.get("marks", [])
+        marks = [ScaleMarkData(**m) for m in marks_data]
+        data = ScaleSchemeUpdate(marks=marks)
+    except Exception as e:
+        return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
+    try:
+        scheme = MultiVesselService.update_vessel_scale_scheme(db, project_id, vessel_id, data)
+    except ValidationError as e:
+        return _handle_validation_error(e)
+    return {"ok": True, "scheme": scheme.model_dump(mode="json") if scheme else None}
+
+
+@router.get("/projects/{project_id}/multi-vessel/experiments/new")
+async def create_multi_experiment(project_id: int, db: Session = Depends(get_db)):
+    try:
+        exp = MultiVesselService.create_multi_experiment(db, project_id)
+    except ValidationError as e:
+        return RedirectResponse(
+            url=f"/projects/{project_id}?error={e.message}",
+            status_code=303,
+        )
+    return RedirectResponse(
+        url=f"/projects/{project_id}?exp={exp.id}&multi=1",
+        status_code=303,
+    )
+
+
+@router.post("/projects/{project_id}/multi-vessel/experiments")
+async def create_multi_experiment_post(
+    project_id: int, db: Session = Depends(get_db)
+):
+    try:
+        exp = MultiVesselService.create_multi_experiment(db, project_id)
+    except ValidationError as e:
+        return _handle_validation_error(e)
+    return {"ok": True, "experiment": exp.model_dump(mode="json")}
+
+
+@router.post("/projects/{project_id}/multi-vessel/experiments/{exp_id}/records")
+async def add_multi_vessel_records(
+    project_id: int, exp_id: int,
+    request: Request, db: Session = Depends(get_db)
+):
+    try:
+        payload = await request.json()
+        data = VesselBatchRecordCreate(**payload)
+    except Exception as e:
+        return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
+    try:
+        records = MultiVesselService.add_vessel_records(db, project_id, exp_id, data)
+    except ValidationError as e:
+        return _handle_validation_error(e)
+    return {"ok": True, "records": [r.model_dump() for r in records]}
+
+
+@router.post("/projects/{project_id}/multi-vessel/experiments/{exp_id}/finalize")
+async def finalize_multi_experiment(
+    project_id: int, exp_id: int, db: Session = Depends(get_db)
+):
+    try:
+        avg_error, count = MultiVesselService.finalize_multi_experiment(db, project_id, exp_id)
+    except ValueError as e:
+        return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
+    try:
+        analysis = MultiVesselService.get_multi_analysis(db, project_id, exp_id)
+    except ValueError as e:
+        return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
+    project = ProjectService.get_project(db, project_id)
+    exp = ProjectService.get_experiment(db, exp_id)
+    vessel_records = []
+    if exp:
+        from schemas import VesselRecordOut
+        vessel_records = [
+            VesselRecordOut(
+                id=r.id, vessel_id=r.vessel_id,
+                time_point=r.time_point, water_level=r.water_level,
+                computed_flow_rate=r.computed_flow_rate,
+                time_error=r.time_error, inflow_rate=r.inflow_rate,
+            ).model_dump()
+            for r in exp.vessel_records
+        ]
+    return {
+        "ok": True,
+        "avg_error": avg_error,
+        "record_count": count,
+        "project_status": project.status if project else None,
+        "analysis": analysis.model_dump(mode="json"),
+        "vessel_records": vessel_records,
+    }
+
+
+@router.get("/projects/{project_id}/multi-vessel/analysis")
+async def get_multi_analysis(
+    project_id: int,
+    exp_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    experiments = ProjectService.list_experiments(db, project_id)
+    multi_exps = [e for e in experiments if getattr(e, 'is_multi_vessel', False)]
+    if exp_id is None:
+        if multi_exps:
+            exp_id = multi_exps[-1].id
+        else:
+            return JSONResponse(
+                status_code=422,
+                content={"ok": False, "error": "暂无多级漏刻实验数据"},
+            )
+    try:
+        analysis = MultiVesselService.get_multi_analysis(db, project_id, exp_id)
+    except ValueError as e:
+        return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
+    return {"ok": True, "analysis": analysis.model_dump(mode="json")}
+
+
+@router.get("/projects/{project_id}/multi-vessel/joint-adjustment")
+async def get_joint_scale_adjustment(
+    project_id: int,
+    exp_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    experiments = ProjectService.list_experiments(db, project_id)
+    multi_exps = [e for e in experiments if getattr(e, 'is_multi_vessel', False)]
+    if exp_id is None:
+        if multi_exps:
+            exp_id = multi_exps[-1].id
+        else:
+            return JSONResponse(
+                status_code=422,
+                content={"ok": False, "error": "暂无多级漏刻实验数据"},
+            )
+    try:
+        adjustment = MultiVesselService.get_joint_scale_adjustment(db, project_id, exp_id)
+    except ValueError as e:
+        return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
+    return {"ok": True, "adjustment": adjustment.model_dump(mode="json")}

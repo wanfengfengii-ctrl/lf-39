@@ -19,6 +19,7 @@ class ProjectOut(ProjectCreate):
     created_at: datetime
     status: str
     needs_recheck: bool
+    is_multi_vessel: bool = False
     experiment_count: int = 0
 
 
@@ -32,5 +33,6 @@ class ProjectListItem(BaseModel):
     created_at: datetime
     status: str
     needs_recheck: bool
+    is_multi_vessel: bool = False
     experiment_count: int = 0
     last_round: Optional[int] = None

@@ -36,273 +36,606 @@
     </div>
   </div>
 
+  <!-- 模式切换标签 -->
+  <div class="mode-tabs">
+    <button class="mode-tab {% if not project.is_multi_vessel %}active{% endif %}" data-mode="single">
+      <span class="mode-icon">⏱</span>
+      <span>单壶漏刻</span>
+    </button>
+    <button class="mode-tab {% if project.is_multi_vessel %}active{% endif %}" data-mode="multi">
+      <span class="mode-icon">🔗</span>
+      <span>双壶串联/多级联动</span>
+    </button>
+  </div>
+
   <div class="project-body">
-    <aside class="left-panel">
-      <section class="panel-card collapsible open">
-        <header class="panel-header" data-toggle>
-          <span class="panel-icon">⚙️</span>
-          <h3>漏壶结构配置</h3>
-          <span class="chevron">▾</span>
-        </header>
-        <div class="panel-body">
-          {% if config.params_changed %}
-          <div class="alert alert-warn small">
-            ⚠ 最近参数已变更，历史实验结论已自动标记为「待复核」。
-          </div>
-          {% endif %}
-          <form id="config-form" class="form-body compact" novalidate>
-            <div class="form-group">
-              <label for="capacity">漏壶容量 <span class="req">*</span></label>
-              <div class="input-with-unit">
-                <input type="number" id="capacity" name="capacity" step="0.01" min="0.01"
-                       value="{{ config.capacity }}" required>
-                <span class="unit">ml</span>
-              </div>
-              <small class="form-error" data-err-for="capacity"></small>
+
+    <!-- ============ 单壶漏刻模式 ============ -->
+    <div id="single-mode" class="mode-panel {% if not project.is_multi_vessel %}active{% endif %}">
+      <aside class="left-panel">
+        <section class="panel-card collapsible open">
+          <header class="panel-header" data-toggle>
+            <span class="panel-icon">⚙️</span>
+            <h3>漏壶结构配置</h3>
+            <span class="chevron">▾</span>
+          </header>
+          <div class="panel-body">
+            {% if config and config.params_changed %}
+            <div class="alert alert-warn small">
+              ⚠ 最近参数已变更，历史实验结论已自动标记为「待复核」。
             </div>
-
-            <div class="form-group">
-              <label for="water_inlet_type">进水方式 <span class="req">*</span></label>
-              <select id="water_inlet_type" name="water_inlet_type" required>
-                <option value="gravity" {% if config.water_inlet_type == 'gravity' %}selected{% endif %}>
-                  重力式（上壶自然下落）
-                </option>
-                <option value="constant" {% if config.water_inlet_type == 'constant' %}selected{% endif %}>
-                  恒压式（补充水源维持液位）
-                </option>
-                <option value="manual" {% if config.water_inlet_type == 'manual' %}selected{% endif %}>
-                  人工注水
-                </option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="outlet_diameter">出水孔径 <span class="req">*</span></label>
-              <div class="input-with-unit">
-                <input type="number" id="outlet_diameter" name="outlet_diameter" step="0.01" min="0.01"
-                       value="{{ config.outlet_diameter }}" required>
-                <span class="unit">mm</span>
-              </div>
-              <small class="form-error" data-err-for="outlet_diameter"></small>
-            </div>
-
-            <div class="form-group">
-              <label for="target_duration">目标计时时长 <span class="req">*</span></label>
-              <div class="input-with-unit">
-                <input type="number" id="target_duration" name="target_duration" step="0.1" min="0.1"
-                       value="{{ config.target_duration }}" required>
-                <span class="unit">分钟</span>
-              </div>
-              <small class="form-error" data-err-for="target_duration"></small>
-            </div>
-
-            <button type="submit" class="btn btn-primary btn-block">保存结构配置</button>
-          </form>
-        </div>
-      </section>
-
-      <section class="panel-card collapsible open">
-        <header class="panel-header" data-toggle>
-          <span class="panel-icon">📏</span>
-          <h3>刻度方案设计</h3>
-          <span class="chevron">▾</span>
-        </header>
-        <div class="panel-body">
-          <div class="scale-toolbar">
-            <label class="field-inline">
-              刻度数
-              <input type="number" id="scale-count-input" min="2" max="60"
-                     value="{{ scheme.marks|length if scheme else 11 }}">
-            </label>
-            <button class="btn btn-secondary btn-sm" id="regen-scale-btn">按线性重生成</button>
-          </div>
-
-          <div class="scale-visual" id="scale-visual">
-            {% if scheme.marks %}
-            {% set capacity = config.capacity %}
-            {% for m in scheme.marks %}
-            {% set pct = (m.target_water_level / capacity * 100) if capacity else 0 %}
-            <div class="scale-mark-line"
-                 data-idx="{{ m.mark_index }}"
-                 style="left: {{ pct }}%;">
-              <div class="tick"></div>
-              <div class="mark-label">#{{ m.mark_index }}<br>{{ m.target_time }}分</div>
-            </div>
-            {% endfor %}
             {% endif %}
-          </div>
+            <form id="config-form" class="form-body compact" novalidate>
+              <div class="form-group">
+                <label for="capacity">漏壶容量 <span class="req">*</span></label>
+                <div class="input-with-unit">
+                  <input type="number" id="capacity" name="capacity" step="0.01" min="0.01"
+                         value="{{ config.capacity if config else 1000 }}" required>
+                  <span class="unit">ml</span>
+                </div>
+                <small class="form-error" data-err-for="capacity"></small>
+              </div>
 
-          <form id="scale-form" class="form-body compact mt-1">
-            <div class="scale-table-wrap">
-              <table class="scale-table" id="scale-table">
+              <div class="form-group">
+                <label for="water_inlet_type">进水方式 <span class="req">*</span></label>
+                <select id="water_inlet_type" name="water_inlet_type" required>
+                  <option value="gravity" {% if config and config.water_inlet_type == 'gravity' %}selected{% endif %}>
+                    重力式（上壶自然下落）
+                  </option>
+                  <option value="constant" {% if config and config.water_inlet_type == 'constant' %}selected{% endif %}>
+                    恒压式（补充水源维持液位）
+                  </option>
+                  <option value="manual" {% if config and config.water_inlet_type == 'manual' %}selected{% endif %}>
+                    人工注水
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="outlet_diameter">出水孔径 <span class="req">*</span></label>
+                <div class="input-with-unit">
+                  <input type="number" id="outlet_diameter" name="outlet_diameter" step="0.01" min="0.01"
+                         value="{{ config.outlet_diameter if config else 3 }}" required>
+                  <span class="unit">mm</span>
+                </div>
+                <small class="form-error" data-err-for="outlet_diameter"></small>
+              </div>
+
+              <div class="form-group">
+                <label for="target_duration">目标计时时长 <span class="req">*</span></label>
+                <div class="input-with-unit">
+                  <input type="number" id="target_duration" name="target_duration" step="0.1" min="0.1"
+                         value="{{ config.target_duration if config else 60 }}" required>
+                  <span class="unit">分钟</span>
+                </div>
+                <small class="form-error" data-err-for="target_duration"></small>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-block">保存结构配置</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="panel-card collapsible open">
+          <header class="panel-header" data-toggle>
+            <span class="panel-icon">📏</span>
+            <h3>刻度方案设计</h3>
+            <span class="chevron">▾</span>
+          </header>
+          <div class="panel-body">
+            <div class="scale-toolbar">
+              <label class="field-inline">
+                刻度数
+                <input type="number" id="scale-count-input" min="2" max="60"
+                       value="{{ scheme.marks|length if scheme else 11 }}">
+              </label>
+              <button class="btn btn-secondary btn-sm" id="regen-scale-btn">按线性重生成</button>
+            </div>
+
+            <div class="scale-visual" id="scale-visual">
+              {% if scheme and scheme.marks %}
+              {% set capacity = config.capacity if config else 1000 %}
+              {% for m in scheme.marks %}
+              {% set pct = (m.target_water_level / capacity * 100) if capacity else 0 %}
+              <div class="scale-mark-line"
+                   data-idx="{{ m.mark_index }}"
+                   style="left: {{ pct }}%;">
+                <div class="tick"></div>
+                <div class="mark-label">#{{ m.mark_index }}<br>{{ m.target_time }}分</div>
+              </div>
+              {% endfor %}
+              {% endif %}
+            </div>
+
+            <form id="scale-form" class="form-body compact mt-1">
+              <div class="scale-table-wrap">
+                <table class="scale-table" id="scale-table">
+                  <thead>
+                    <tr>
+                      <th>刻度</th>
+                      <th>目标时间(分)</th>
+                      <th>对应水位(ml)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="scale-tbody">
+                    {% if scheme and scheme.marks %}
+                    {% for m in scheme.marks %}
+                    <tr data-index="{{ m.mark_index }}">
+                      <td>#{{ m.mark_index }}</td>
+                      <td><input type="number" step="0.01" min="0" class="target-time" value="{{ m.target_time }}"></td>
+                      <td><input type="number" step="0.01" min="0.01" class="target-water" value="{{ m.target_water_level }}"></td>
+                    </tr>
+                    {% endfor %}
+                    {% endif %}
+                  </tbody>
+                </table>
+              </div>
+              <button type="submit" class="btn btn-secondary btn-block">保存刻度方案</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="panel-card collapsible open">
+          <header class="panel-header" data-toggle>
+            <span class="panel-icon">🧪</span>
+            <h3>实验数据录入</h3>
+            <span class="chevron">▾</span>
+          </header>
+          <div class="panel-body">
+            <div class="exp-header-row">
+              <div class="round-tabs" id="round-tabs">
+                {% if experiments %}
+                {% set single_exps = experiments | selectattr('is_multi_vessel', 'equalto', false) | list %}
+                {% if single_exps %}
+                {% for e in single_exps %}
+                <button class="round-tab {% if loop.last %}active{% endif %}"
+                        data-exp-id="{{ e.id }}"
+                        data-status="{{ e.status }}"
+                        data-needs-recheck="{{ '1' if e.needs_recheck else '0' }}">
+                  <span>第{{ e.round_number }}轮</span>
+                  {% if e.needs_recheck %}
+                  <span class="tab-dot warn" title="待复核"></span>
+                  {% endif %}
+                  {% if e.status == 'recording' %}
+                  <span class="tab-dot recording" title="采集中"></span>
+                  {% elif e.status == 'finalized' %}
+                  <span class="tab-dot done" title="已完成"></span>
+                  {% endif %}
+                </button>
+                {% endfor %}
+                {% else %}
+                <span class="hint-empty">尚未开始任何实验</span>
+                {% endif %}
+                {% else %}
+                <span class="hint-empty">尚未开始任何实验</span>
+                {% endif %}
+              </div>
+              <a class="btn btn-primary btn-sm" href="/api/projects/{{ project.id }}/experiments/new">
+                ＋ 新一轮实验
+              </a>
+            </div>
+
+            <div id="current-exp-summary" class="exp-summary"></div>
+
+            <form id="record-form" class="form-body compact mt-1" novalidate>
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="time_point">时间节点 <span class="req">*</span></label>
+                  <div class="input-with-unit">
+                    <input type="number" id="time_point" name="time_point" step="0.1" min="0" placeholder="如 5.0">
+                    <span class="unit">分</span>
+                  </div>
+                </div>
+                <div class="form-group flex-1">
+                  <label for="water_level">实测水位 <span class="req">*</span></label>
+                  <div class="input-with-unit">
+                    <input type="number" id="water_level" name="water_level" step="0.01" min="0"
+                           max="{{ config.capacity if config else 1000 }}"
+                           placeholder="≤{{ config.capacity if config else 1000 }} ml">
+                    <span class="unit">ml</span>
+                  </div>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-accent btn-block">＋ 录入此节点</button>
+              <small class="form-error block" id="record-form-error"></small>
+            </form>
+
+            <div class="records-table-wrap mt-1">
+              <table class="records-table" id="records-table">
                 <thead>
                   <tr>
-                    <th>刻度</th>
-                    <th>目标时间(分)</th>
-                    <th>对应水位(ml)</th>
+                    <th>时间(分)</th>
+                    <th>水位(ml)</th>
+                    <th>流速(ml/分)</th>
+                    <th>误差(%)</th>
+                    <th></th>
                   </tr>
                 </thead>
-                <tbody id="scale-tbody">
-                  {% if scheme.marks %}
-                  {% for m in scheme.marks %}
-                  <tr data-index="{{ m.mark_index }}">
-                    <td>#{{ m.mark_index }}</td>
-                    <td><input type="number" step="0.01" min="0" class="target-time" value="{{ m.target_time }}"></td>
-                    <td><input type="number" step="0.01" min="0.01" class="target-water" value="{{ m.target_water_level }}"></td>
+                <tbody id="records-tbody"></tbody>
+              </table>
+            </div>
+
+            <div class="exp-footer-actions">
+              <button class="btn btn-secondary btn-sm" id="finalize-btn" disabled>
+                ✓ 完成本轮并计算误差
+              </button>
+              <button class="btn btn-ghost btn-sm" id="toggle-recheck-btn" style="display:none;">
+                标记/取消待复核
+              </button>
+            </div>
+          </div>
+        </section>
+      </aside>
+
+      <section class="right-panel">
+        <div class="panel-card">
+          <header class="panel-header">
+            <span class="panel-icon">📈</span>
+            <h3>水位变化曲线</h3>
+            <div class="compare-picker" id="compare-picker">
+              <label class="picker-label">对比轮次：</label>
+              <div id="compare-checkboxes" class="compare-checkboxes"></div>
+            </div>
+          </header>
+          <div class="panel-body chart-body">
+            <div id="water-level-chart" class="chart-container"></div>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <header class="panel-header">
+            <span class="panel-icon">🔬</span>
+            <h3>误差分析仪表盘</h3>
+            <div class="analysis-meta" id="analysis-meta"></div>
+          </header>
+          <div class="panel-body">
+            <div class="kpi-row" id="kpi-row">
+              <div class="kpi-card"><div class="kpi-label">平均误差</div><div class="kpi-value" id="kpi-avg">--</div></div>
+              <div class="kpi-card"><div class="kpi-label">最大误差</div><div class="kpi-value warn" id="kpi-max">--</div></div>
+              <div class="kpi-card"><div class="kpi-label">超限区间数</div><div class="kpi-value danger" id="kpi-exceed">--</div></div>
+              <div class="kpi-card"><div class="kpi-label">误差阈值</div><div class="kpi-value" id="kpi-threshold">±5%</div></div>
+            </div>
+
+            <div class="chart-container small-chart" id="error-bar-chart"></div>
+
+            <div class="section-subtitle">区间误差详情</div>
+            <div class="table-responsive">
+              <table class="interval-error-table" id="interval-error-table">
+                <thead>
+                  <tr>
+                    <th>刻度区间</th>
+                    <th>时段(分)</th>
+                    <th>理论水位(ml)</th>
+                    <th>实测水位(ml)</th>
+                    <th>偏差(ml)</th>
+                    <th>误差率</th>
                   </tr>
-                  {% endfor %}
-                  {% endif %}
+                </thead>
+                <tbody id="interval-error-tbody">
+                  <tr><td colspan="6" class="placeholder-cell">完成一轮实验后显示分析结果</td></tr>
                 </tbody>
               </table>
             </div>
-            <button type="submit" class="btn btn-secondary btn-block">保存刻度方案</button>
-          </form>
-        </div>
-      </section>
 
-      <section class="panel-card collapsible open">
-        <header class="panel-header" data-toggle>
-          <span class="panel-icon">🧪</span>
-          <h3>实验数据录入</h3>
-          <span class="chevron">▾</span>
-        </header>
-        <div class="panel-body">
-          <div class="exp-header-row">
-            <div class="round-tabs" id="round-tabs">
-              {% if experiments %}
-              {% for e in experiments %}
-              <button class="round-tab {% if loop.last %}active{% endif %}"
-                      data-exp-id="{{ e.id }}"
-                      data-status="{{ e.status }}"
-                      data-needs-recheck="{{ '1' if e.needs_recheck else '0' }}">
-                <span>第{{ e.round_number }}轮</span>
-                {% if e.needs_recheck %}
-                <span class="tab-dot warn" title="待复核"></span>
-                {% endif %}
-                {% if e.status == 'recording' %}
-                <span class="tab-dot recording" title="采集中"></span>
-                {% elif e.status == 'finalized' %}
-                <span class="tab-dot done" title="已完成"></span>
-                {% endif %}
-              </button>
-              {% endfor %}
-              {% else %}
-              <span class="hint-empty">尚未开始任何实验</span>
-              {% endif %}
+            <div class="section-subtitle mt-2">刻度调整推荐</div>
+            <div id="recommendations-list" class="recommendations-list">
+              <div class="placeholder-cell">暂无超差区间，无需调整</div>
             </div>
-            <a class="btn btn-primary btn-sm" href="/api/projects/{{ project.id }}/experiments/new">
-              ＋ 新一轮实验
-            </a>
-          </div>
-
-          <div id="current-exp-summary" class="exp-summary"></div>
-
-          <form id="record-form" class="form-body compact mt-1" novalidate>
-            <div class="form-row">
-              <div class="form-group flex-1">
-                <label for="time_point">时间节点 <span class="req">*</span></label>
-                <div class="input-with-unit">
-                  <input type="number" id="time_point" name="time_point" step="0.1" min="0" placeholder="如 5.0">
-                  <span class="unit">分</span>
-                </div>
-              </div>
-              <div class="form-group flex-1">
-                <label for="water_level">实测水位 <span class="req">*</span></label>
-                <div class="input-with-unit">
-                  <input type="number" id="water_level" name="water_level" step="0.01" min="0"
-                         max="{{ config.capacity }}" placeholder="≤{{ config.capacity }} ml">
-                  <span class="unit">ml</span>
-                </div>
-              </div>
-            </div>
-            <button type="submit" class="btn btn-accent btn-block">＋ 录入此节点</button>
-            <small class="form-error block" id="record-form-error"></small>
-          </form>
-
-          <div class="records-table-wrap mt-1">
-            <table class="records-table" id="records-table">
-              <thead>
-                <tr>
-                  <th>时间(分)</th>
-                  <th>水位(ml)</th>
-                  <th>流速(ml/分)</th>
-                  <th>误差(%)</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="records-tbody"></tbody>
-            </table>
-          </div>
-
-          <div class="exp-footer-actions">
-            <button class="btn btn-secondary btn-sm" id="finalize-btn" disabled>
-              ✓ 完成本轮并计算误差
-            </button>
-            <button class="btn btn-ghost btn-sm" id="toggle-recheck-btn" style="display:none;">
-              标记/取消待复核
-            </button>
           </div>
         </div>
       </section>
-    </aside>
+    </div>
 
-    <section class="right-panel">
-      <div class="panel-card">
-        <header class="panel-header">
-          <span class="panel-icon">📈</span>
-          <h3>水位变化曲线</h3>
-          <div class="compare-picker" id="compare-picker">
-            <label class="picker-label">对比轮次：</label>
-            <div id="compare-checkboxes" class="compare-checkboxes"></div>
+    <!-- ============ 多级漏刻模式 ============ -->
+    <div id="multi-mode" class="mode-panel {% if project.is_multi_vessel %}active{% endif %}">
+      <aside class="left-panel multi-left-panel">
+
+        <div class="sub-tabs">
+          <button class="sub-tab active" data-tab="vessel-config">
+            <span>⚙️ 容器配置</span>
+          </button>
+          <button class="sub-tab" data-tab="vessel-scale">
+            <span>📏 刻度方案</span>
+          </button>
+          <button class="sub-tab" data-tab="multi-experiment">
+            <span>🧪 实验记录</span>
+          </button>
+        </div>
+
+        <!-- 容器配置面板 -->
+        <div id="vessel-config-panel" class="tab-panel active">
+          <section class="panel-card">
+            <header class="panel-header">
+              <span class="panel-icon">🏺</span>
+              <h3>多级容器结构</h3>
+              <button class="btn btn-primary btn-sm" id="add-vessel-btn">＋ 添加容器</button>
+            </header>
+            <div class="panel-body">
+              <div id="vessels-list" class="vessels-list"></div>
+            </div>
+          </section>
+
+          <section class="panel-card">
+            <header class="panel-header">
+              <span class="panel-icon">🔗</span>
+              <h3>级间流量关系</h3>
+              <button class="btn btn-secondary btn-sm" id="add-relation-btn">＋ 添加关系</button>
+            </header>
+            <div class="panel-body">
+              <div id="relations-list" class="relations-list"></div>
+            </div>
+          </section>
+        </div>
+
+        <!-- 刻度方案面板 -->
+        <div id="vessel-scale-panel" class="tab-panel">
+          <section class="panel-card">
+            <header class="panel-header">
+              <span class="panel-icon">📏</span>
+              <h3>各级刻度方案</h3>
+            </header>
+            <div class="panel-body">
+              <div class="form-group">
+                <label>选择容器</label>
+                <select id="scale-vessel-select"></select>
+              </div>
+              <div class="scale-toolbar">
+                <label class="field-inline">
+                  刻度数
+                  <input type="number" id="vessel-scale-count" min="2" max="60" value="11">
+                </label>
+                <button class="btn btn-secondary btn-sm" id="vessel-scale-regen">按线性重生成</button>
+              </div>
+              <form id="vessel-scale-form" class="form-body compact mt-1">
+                <div class="scale-table-wrap">
+                  <table class="scale-table">
+                    <thead>
+                      <tr>
+                        <th>刻度</th>
+                        <th>目标时间(分)</th>
+                        <th>对应水位(ml)</th>
+                      </tr>
+                    </thead>
+                    <tbody id="vessel-scale-tbody">
+                      <tr><td colspan="3" class="placeholder-cell">请选择容器</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <button type="submit" class="btn btn-secondary btn-block">保存该级刻度方案</button>
+              </form>
+            </div>
+          </section>
+        </div>
+
+        <!-- 实验记录面板 -->
+        <div id="multi-experiment-panel" class="tab-panel">
+          <section class="panel-card">
+            <header class="panel-header">
+              <span class="panel-icon">🧪</span>
+              <h3>多级联动实验</h3>
+            </header>
+            <div class="panel-body">
+              <div class="exp-header-row">
+                <div class="round-tabs" id="multi-exp-tabs"></div>
+                <button class="btn btn-primary btn-sm" id="multi-new-exp-btn">＋ 新一轮</button>
+              </div>
+
+              <form id="multi-record-form" class="form-body compact mt-1" novalidate>
+                <div class="form-group">
+                  <label for="multi-time-point">时间节点 <span class="req">*</span></label>
+                  <div class="input-with-unit">
+                    <input type="number" id="multi-time-point" name="time_point" step="0.1" min="0" placeholder="如 5.0">
+                    <span class="unit">分</span>
+                  </div>
+                </div>
+                <div class="section-subtitle small">各容器水位</div>
+                <div id="multi-record-vessels" class="vessel-record-inputs"></div>
+                <button type="submit" class="btn btn-accent btn-block mt-1">＋ 录入此时间节点</button>
+              </form>
+
+              <div class="records-table-wrap mt-1">
+                <table class="records-table" id="multi-records-table">
+                  <thead>
+                    <tr>
+                      <th>时间(分)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="multi-records-tbody">
+                    <tr><td class="placeholder-cell">暂无数据</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="exp-footer-actions">
+                <button class="btn btn-secondary btn-sm" id="multi-finalize-btn" disabled>
+                  ✓ 完成并分析
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+      </aside>
+
+      <section class="right-panel multi-right-panel">
+        <div class="panel-card">
+          <header class="panel-header">
+            <span class="panel-icon">📈</span>
+            <h3>多容器水位联动曲线</h3>
+          </header>
+          <div class="panel-body chart-body">
+            <div id="multi-water-chart" class="chart-container"></div>
           </div>
-        </header>
-        <div class="panel-body chart-body">
-          <div id="water-level-chart" class="chart-container"></div>
+        </div>
+
+        <div class="panel-card">
+          <header class="panel-header">
+            <span class="panel-icon">🌊</span>
+            <h3>级间流量传递误差</h3>
+          </header>
+          <div class="panel-body chart-body">
+            <div id="multi-flow-error-chart" class="chart-container"></div>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <header class="panel-header">
+            <span class="panel-icon">🔬</span>
+            <h3>误差放大分析</h3>
+          </header>
+          <div class="panel-body">
+            <div class="kpi-row">
+              <div class="kpi-card"><div class="kpi-label">各级平均误差</div><div class="kpi-value" id="multi-kpi-avg">--</div></div>
+              <div class="kpi-card"><div class="kpi-label">最大误差</div><div class="kpi-value warn" id="multi-kpi-max">--</div></div>
+              <div class="kpi-card"><div class="kpi-label">放大环节</div><div class="kpi-value danger" id="multi-kpi-amp">--</div></div>
+              <div class="kpi-card"><div class="kpi-label">误差阈值</div><div class="kpi-value">±5%</div></div>
+            </div>
+
+            <div class="chart-container small-chart" id="multi-error-amp-chart"></div>
+
+            <div class="section-subtitle">各级误差详情</div>
+            <div class="table-responsive">
+              <table class="interval-error-table">
+                <thead>
+                  <tr>
+                    <th>容器</th>
+                    <th>层级</th>
+                    <th>平均误差</th>
+                    <th>最大误差</th>
+                    <th>误差增益</th>
+                    <th>状态</th>
+                  </tr>
+                </thead>
+                <tbody id="error-stages-tbody">
+                  <tr><td colspan="6" class="placeholder-cell">完成实验后显示分析结果</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <header class="panel-header">
+            <span class="panel-icon">⚙️</span>
+            <h3>分级刻度联合调整建议</h3>
+          </header>
+          <div class="panel-body">
+            <div id="joint-overall"></div>
+            <div id="joint-adjustment-steps" class="joint-adjustment-steps">
+              <div class="placeholder-cell">完成实验后显示联合调整建议</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </div>
+</div>
+
+<!-- 容器编辑弹窗 -->
+<div id="vessel-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="vessel-modal-title">添加容器</h3>
+      <button class="modal-close">×</button>
+    </div>
+    <form id="vessel-form" class="form-body">
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label>层级索引 <span class="req">*</span></label>
+          <input type="number" name="level_index" min="0" step="1" required>
+        </div>
+        <div class="form-group flex-1">
+          <label>容器角色</label>
+          <select name="role">
+            <option value="top">上壶</option>
+            <option value="middle">中壶</option>
+            <option value="bottom">下壶</option>
+            <option value="reservoir">蓄水池</option>
+          </select>
         </div>
       </div>
-
-      <div class="panel-card">
-        <header class="panel-header">
-          <span class="panel-icon">🔬</span>
-          <h3>误差分析仪表盘</h3>
-          <div class="analysis-meta" id="analysis-meta"></div>
-        </header>
-        <div class="panel-body">
-          <div class="kpi-row" id="kpi-row">
-            <div class="kpi-card"><div class="kpi-label">平均误差</div><div class="kpi-value" id="kpi-avg">--</div></div>
-            <div class="kpi-card"><div class="kpi-label">最大误差</div><div class="kpi-value warn" id="kpi-max">--</div></div>
-            <div class="kpi-card"><div class="kpi-label">超限区间数</div><div class="kpi-value danger" id="kpi-exceed">--</div></div>
-            <div class="kpi-card"><div class="kpi-label">误差阈值</div><div class="kpi-value" id="kpi-threshold">±5%</div></div>
-          </div>
-
-          <div class="chart-container small-chart" id="error-bar-chart"></div>
-
-          <div class="section-subtitle">区间误差详情</div>
-          <div class="table-responsive">
-            <table class="interval-error-table" id="interval-error-table">
-              <thead>
-                <tr>
-                  <th>刻度区间</th>
-                  <th>时段(分)</th>
-                  <th>理论水位(ml)</th>
-                  <th>实测水位(ml)</th>
-                  <th>偏差(ml)</th>
-                  <th>误差率</th>
-                </tr>
-              </thead>
-              <tbody id="interval-error-tbody">
-                <tr><td colspan="6" class="placeholder-cell">完成一轮实验后显示分析结果</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="section-subtitle mt-2">刻度调整推荐</div>
-          <div id="recommendations-list" class="recommendations-list">
-            <div class="placeholder-cell">暂无超差区间，无需调整</div>
-          </div>
+      <div class="form-group">
+        <label>容器名称 <span class="req">*</span></label>
+        <input type="text" name="name" required maxlength="50">
+      </div>
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label>容量 (ml) <span class="req">*</span></label>
+          <input type="number" name="capacity" step="0.01" min="0.01" required>
+        </div>
+        <div class="form-group flex-1">
+          <label>出水孔径 (mm) <span class="req">*</span></label>
+          <input type="number" name="outlet_diameter" step="0.01" min="0.01" required>
         </div>
       </div>
-    </section>
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label>进水方式</label>
+          <select name="water_inlet_type">
+            <option value="gravity">重力式</option>
+            <option value="constant">恒压式</option>
+            <option value="manual">人工</option>
+          </select>
+        </div>
+        <div class="form-group flex-1">
+          <label>目标时长 (分钟)</label>
+          <input type="number" name="target_duration" step="0.1" min="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>初始水位 (ml)</label>
+        <input type="number" name="initial_level" step="0.01" min="0" placeholder="默认等于容量">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('vessel-modal').style.display='none'">取消</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 流量关系弹窗 -->
+<div id="relation-modal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>添加流量关系</h3>
+      <button class="modal-close">×</button>
+    </div>
+    <form id="relation-form" class="form-body">
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label>上游容器 <span class="req">*</span></label>
+          <select name="upstream_vessel_id" required></select>
+        </div>
+        <div class="form-group flex-1">
+          <label>下游容器 <span class="req">*</span></label>
+          <select name="downstream_vessel_id" required></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group flex-1">
+          <label>流量传递系数</label>
+          <input type="number" name="flow_coefficient" step="0.01" min="0" value="1.0">
+        </div>
+        <div class="form-group flex-1">
+          <label>级间延迟 (秒)</label>
+          <input type="number" name="delay_seconds" step="0.1" min="0" value="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>关联类型</label>
+        <select name="relation_type">
+          <option value="series">串联</option>
+          <option value="parallel">并联</option>
+          <option value="bypass">旁通</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" onclick="document.getElementById('relation-modal').style.display='none'">取消</button>
+        <button type="submit" class="btn btn-primary">添加</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -312,14 +645,77 @@
     config: {{ config | tojson }},
     scheme: {{ scheme | tojson }},
     experiments: {{ experiments | tojson }},
+    multi_config: {{ multi_config | tojson }},
     errorThreshold: 5.0
   };
 </script>
 {% endblock %}
 {% block scripts %}
+<script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+<script src="{{ url_for('static', path='js/multi_vessel.js') }}"></script>
 <script>
+  function initMultiVesselMode() {
+    if (window.__multiVesselInit__) return;
+    const raw = window.__APP_DATA__ || {};
+    const ctx = {
+      projectId: raw.project?.id,
+      project: raw.project,
+      multiConfig: raw.multi_config,
+      experiments: raw.experiments || [],
+      multiExperiments: [],
+      currentMultiExpId: null,
+      currentVesselId: null,
+      currentVesselScale: null,
+      multiAnalysis: null,
+      jointAdjustment: null,
+      errorThreshold: raw.errorThreshold || 5.0,
+    };
+    MultiVesselApp.init(ctx);
+    window.__multiVesselCtx__ = ctx;
+    window.__multiVesselInit__ = true;
+  }
+
+  function switchMode(mode) {
+    const modeTabs = document.querySelectorAll('.mode-tab');
+    modeTabs.forEach(t => t.classList.remove('active'));
+    const activeTab = document.querySelector(`.mode-tab[data-mode="${mode}"]`);
+    if (activeTab) activeTab.classList.add('active');
+
+    document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
+    const panel = document.getElementById(mode + '-mode');
+    if (panel) panel.classList.add('active');
+
+    if (mode === 'multi') {
+      initMultiVesselMode();
+    } else if (mode === 'single') {
+      setTimeout(() => {
+        const ctx = window.__CTX__;
+        if (ctx && ClepsydraCharts) {
+          ClepsydraCharts.renderWaterLevel(
+            'water-level-chart',
+            ctx.experiments.filter(e => !e.is_multi_vessel),
+            ctx.scheme, ctx.config, ctx.selectedExperimentIds
+          );
+        }
+      }, 50);
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     ClepsydraApp.initProjectDetail();
+
+    const modeTabs = document.querySelectorAll('.mode-tab');
+    modeTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        switchMode(tab.dataset.mode);
+      });
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    const raw = window.__APP_DATA__ || {};
+    if (params.get('multi') === '1' || (raw.project?.is_multi_vessel && raw.multi_config?.vessels?.length > 0)) {
+      switchMode('multi');
+    }
   });
 </script>
 {% endblock %}

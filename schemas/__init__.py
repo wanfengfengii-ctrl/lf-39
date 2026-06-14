@@ -5,8 +5,18 @@ from schemas.scale import (  # noqa: F401
     ScaleMarkOut, ScaleSchemeOut,
 )
 from schemas.experiment import (  # noqa: F401
-    ExperimentRecordCreate, ExperimentRecordOut, ExperimentOut,
+    ExperimentRecordCreate, ExperimentRecordOut, VesselRecordOut, ExperimentOut,
 )
 from schemas.analysis import (  # noqa: F401
     IntervalError, AdjustmentRecommendation, ErrorAnalysisOut,
+)
+from schemas.multi_vessel import (  # noqa: F401
+    VesselCreate, VesselUpdate, VesselOut,
+    VesselFlowRelationCreate, VesselFlowRelationOut,
+    MultiVesselConfigOut,
+    VesselRecordCreate, VesselBatchRecordCreate, VesselRecordOut,
+    VesselLevelDataPoint, VesselTimeSeries,
+    InterVesselError, VesselErrorAmplification, VesselScaleAdjustment,
+    MultiVesselAnalysisOut,
+    JointAdjustmentStep, JointScaleAdjustmentOut,
 )

@@ -4,7 +4,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
-from services import ProjectService
+from services import ProjectService, MultiVesselService
 
 router = APIRouter()
 
@@ -18,6 +18,7 @@ def _serialize_experiment(exp):
         "status": exp.status,
         "needs_recheck": exp.needs_recheck,
         "total_error": exp.total_error,
+        "is_multi_vessel": getattr(exp, 'is_multi_vessel', False),
         "records": [
             {
                 "id": r.id,
@@ -63,7 +64,14 @@ async def project_detail(
 
     experiments_json = []
     for exp in experiments:
-        experiments_json.append(exp.model_dump(mode="json"))
+        exp_dict = exp.model_dump(mode="json")
+        exp_dict["is_multi_vessel"] = getattr(exp, 'is_multi_vessel', False)
+        experiments_json.append(exp_dict)
+
+    multi_config = None
+    if getattr(project, 'is_multi_vessel', False):
+        multi_cfg = MultiVesselService.get_config(db, project_id)
+        multi_config = multi_cfg.model_dump(mode="json")
 
     return templates.TemplateResponse(
         "project_detail.html",
@@ -76,11 +84,13 @@ async def project_detail(
                 "researcher": project.researcher,
                 "status": project.status,
                 "needs_recheck": project.needs_recheck,
+                "is_multi_vessel": getattr(project, 'is_multi_vessel', False),
                 "created_at": project.created_at.isoformat()
                 if project.created_at else None,
             },
             "config": config.model_dump(mode="json") if config else None,
             "scheme": scheme.model_dump(mode="json") if scheme else None,
             "experiments": experiments_json,
+            "multi_config": multi_config,
         },
     )
