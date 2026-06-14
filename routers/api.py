@@ -8,13 +8,17 @@ from sqlalchemy.orm import Session
 
 from database.connection import get_db
 from database import models
-from services import ProjectService, ValidationError, AnalysisService, MultiVesselService, RobustnessService
+from services import (
+    ProjectService, ValidationError, AnalysisService, MultiVesselService,
+    RobustnessService, JointInversionService,
+)
 from schemas import (
     ProjectCreate, ClepsydraConfigUpdate, ScaleSchemeUpdate,
     ExperimentRecordCreate, ScaleMarkData,
     VesselCreate, VesselUpdate, VesselFlowRelationCreate,
     VesselBatchRecordCreate,
     PerturbationConfigUpdate,
+    InversionRunRequest, InversionParameterRange,
 )
 
 router = APIRouter(prefix="/api", tags=["projects"])
@@ -561,3 +565,154 @@ async def get_robustness_assessment(
             content={"ok": False, "error": "尚未运行模拟，请先执行批量模拟"},
         )
     return {"ok": True, "assessment": assessment.model_dump(mode="json")}
+
+
+# ============ 真实实验—扰动仿真联合反演 API ============
+
+@router.get("/projects/{project_id}/inversion/results")
+async def list_inversion_results(project_id: int, db: Session = Depends(get_db)):
+    results = JointInversionService.list_results(db, project_id)
+    return {
+        "ok": True,
+        "results": [r.model_dump(mode="json") for r in results],
+    }
+
+
+@router.post("/projects/{project_id}/inversion/run")
+async def run_joint_inversion(
+    project_id: int, request: Request, db: Session = Depends(get_db)
+):
+    try:
+        payload = await request.json()
+    except Exception as e:
+        return JSONResponse(status_code=422, content={"ok": False, "error": f"请求解析失败: {str(e)}"})
+
+    try:
+        custom_ranges_data = payload.get("custom_ranges")
+        custom_ranges = None
+        if custom_ranges_data:
+            custom_ranges = [
+                InversionParameterRange(**cr) for cr in custom_ranges_data
+            ]
+
+        run_data = InversionRunRequest(
+            experiment_id=payload.get("experiment_id"),
+            is_multi_vessel=bool(payload.get("is_multi_vessel", False)),
+            algorithm=payload.get("algorithm", "hybrid_pso_grid"),
+            particle_count=int(payload.get("particle_count", 30)),
+            iteration_count=int(payload.get("iteration_count", 50)),
+            grid_density=int(payload.get("grid_density", 5)),
+            confidence_level=float(payload.get("confidence_level", 0.95)),
+            custom_ranges=custom_ranges,
+            target_vessel_id=payload.get("target_vessel_id"),
+        )
+    except Exception as e:
+        return JSONResponse(status_code=422, content={"ok": False, "error": f"参数校验失败: {str(e)}"})
+
+    try:
+        result = JointInversionService.run_inversion(db, project_id, run_data)
+    except ValidationError as e:
+        return _handle_validation_error(e)
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "error": f"反演计算失败: {str(e)}"},
+        )
+
+    return {"ok": True, "result": result.model_dump(mode="json")}
+
+
+@router.get("/inversion/results/{result_id}")
+async def get_inversion_result(result_id: int, db: Session = Depends(get_db)):
+    result = JointInversionService.get_result(db, result_id)
+    if result is None:
+        return JSONResponse(
+            status_code=404,
+            content={"ok": False, "error": "反演结果不存在"},
+        )
+    return {"ok": True, "result": result.model_dump(mode="json")}
+
+
+@router.delete("/inversion/results/{result_id}")
+async def delete_inversion_result(result_id: int, db: Session = Depends(get_db)):
+    ok = JointInversionService.delete_result(db, result_id)
+    if not ok:
+        return JSONResponse(
+            status_code=404,
+            content={"ok": False, "error": "反演结果不存在"},
+        )
+    return {"ok": True}
+
+
+@router.get("/projects/{project_id}/inversion/param-ranges")
+async def get_inversion_param_ranges(project_id: int, db: Session = Depends(get_db)):
+    try:
+        cfg = RobustnessService.get_config(db, project_id)
+    except ValidationError as e:
+        return _handle_validation_error(e)
+
+    ranges = [
+        {
+            "parameter": "temperature",
+            "parameter_label": "环境温度",
+            "min_value": cfg.temperature_min,
+            "max_value": cfg.temperature_max,
+            "baseline": cfg.temperature_baseline,
+            "enabled": cfg.temperature_enabled,
+            "unit": "°C",
+        },
+        {
+            "parameter": "viscosity",
+            "parameter_label": "液体黏度",
+            "min_value": cfg.viscosity_min,
+            "max_value": cfg.viscosity_max,
+            "baseline": cfg.viscosity_baseline,
+            "enabled": cfg.viscosity_enabled,
+            "unit": "mPa·s",
+        },
+        {
+            "parameter": "inflow_amplitude",
+            "parameter_label": "注水波动幅度",
+            "min_value": 0.0,
+            "max_value": cfg.inflow_fluctuation_amplitude,
+            "baseline": 0.0,
+            "enabled": cfg.inflow_fluctuation_enabled,
+            "unit": "",
+        },
+        {
+            "parameter": "orifice_wear",
+            "parameter_label": "孔径磨损程度",
+            "min_value": 0.0,
+            "max_value": cfg.orifice_wear_max,
+            "baseline": 0.0,
+            "enabled": cfg.orifice_wear_enabled,
+            "unit": "",
+        },
+        {
+            "parameter": "tilt_angle",
+            "parameter_label": "容器倾斜角度",
+            "min_value": cfg.tilt_angle_min,
+            "max_value": cfg.tilt_angle_max,
+            "baseline": cfg.tilt_angle_baseline,
+            "enabled": cfg.tilt_enabled,
+            "unit": "°",
+        },
+    ]
+
+    experiments = ProjectService.list_experiments(db, project_id)
+    exp_options = []
+    for exp in experiments:
+        if getattr(exp, 'status', '') in ('finalized', 'completed'):
+            exp_options.append({
+                "id": exp.id,
+                "round_number": exp.round_number,
+                "is_multi_vessel": getattr(exp, 'is_multi_vessel', False),
+                "status": exp.status,
+                "total_error": getattr(exp, 'total_error', None),
+            })
+
+    return {
+        "ok": True,
+        "param_ranges": ranges,
+        "experiments": exp_options,
+    }

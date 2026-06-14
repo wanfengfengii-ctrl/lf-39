@@ -286,3 +286,56 @@ class RobustnessAssessment(Base):
 
     project = relationship("Project")
     config = relationship("PerturbationConfig")
+
+
+class JointInversionResult(Base):
+    __tablename__ = "joint_inversion_results"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    experiment_id = Column(Integer, ForeignKey("experiments.id"), nullable=True)
+    is_multi_vessel = Column(Boolean, default=False)
+    status = Column(String(20), default="pending")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+    algorithm = Column(String(30), default="hybrid_pso_grid")
+    iteration_count = Column(Integer, default=0)
+    particle_count = Column(Integer, default=30)
+    grid_density = Column(Integer, default=5)
+
+    optimal_temperature = Column(Float, nullable=True)
+    optimal_viscosity = Column(Float, nullable=True)
+    optimal_inflow_amplitude = Column(Float, nullable=True)
+    optimal_orifice_wear = Column(Float, nullable=True)
+    optimal_tilt_angle = Column(Float, nullable=True)
+    optimal_params = Column(JSON, nullable=True)
+
+    best_fit_error = Column(Float, nullable=True)
+    avg_fit_error = Column(Float, nullable=True)
+    error_std = Column(Float, nullable=True)
+    rmse = Column(Float, nullable=True)
+    r_squared = Column(Float, nullable=True)
+
+    temperature_ci_low = Column(Float, nullable=True)
+    temperature_ci_high = Column(Float, nullable=True)
+    viscosity_ci_low = Column(Float, nullable=True)
+    viscosity_ci_high = Column(Float, nullable=True)
+    inflow_amplitude_ci_low = Column(Float, nullable=True)
+    inflow_amplitude_ci_high = Column(Float, nullable=True)
+    orifice_wear_ci_low = Column(Float, nullable=True)
+    orifice_wear_ci_high = Column(Float, nullable=True)
+    tilt_angle_ci_low = Column(Float, nullable=True)
+    tilt_angle_ci_high = Column(Float, nullable=True)
+    confidence_intervals = Column(JSON, nullable=True)
+
+    top_candidates = Column(JSON, nullable=True)
+    convergence_history = Column(JSON, nullable=True)
+    aligned_experiment_points = Column(JSON, nullable=True)
+    simulated_optimal_points = Column(JSON, nullable=True)
+
+    calibration_advice = Column(JSON, nullable=True)
+    summary = Column(Text, nullable=True)
+
+    project = relationship("Project")
+    experiment = relationship("Experiment")

@@ -26,3 +26,9 @@ from schemas.robustness import (  # noqa: F401
     SensitivityScore, ParameterRanking, CalibrationAdvice, ScenarioSummary,
     RobustnessAssessmentOut, SimulationRunRequest, BatchSimulationOut,
 )
+from schemas.inversion import (  # noqa: F401
+    InversionParameterRange, InversionRunRequest,
+    OptimalParameterSet, ConfidenceInterval, FitQualityMetrics,
+    InversionCandidate, ConvergencePoint, AlignedDataPoint,
+    InversionCalibrationAdvice, JointInversionOut, InversionListOut,
+)

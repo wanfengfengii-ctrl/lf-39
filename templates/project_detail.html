@@ -50,6 +50,10 @@
       <span class="mode-icon">🌡</span>
       <span>环境扰动与稳健性评估</span>
     </button>
+    <button class="mode-tab" data-mode="inversion">
+      <span class="mode-icon">🔬</span>
+      <span>真实实验—扰动仿真联合反演</span>
+    </button>
   </div>
 
   <div class="project-body">
@@ -760,6 +764,196 @@
       </div>
     </div>
 
+    <!-- ============ 真实实验—扰动仿真联合反演模式 ============ -->
+    <div id="inversion-mode" class="mode-panel">
+      <div class="inversion-layout">
+
+        <!-- 左侧：反演配置 -->
+        <aside class="left-panel">
+          <section class="panel-card collapsible open">
+            <header class="panel-header" data-toggle>
+              <span class="panel-icon">⚙️</span>
+              <h3>反演参数配置</h3>
+              <span class="chevron">▾</span>
+            </header>
+            <div class="panel-body">
+
+              <div class="form-group">
+                <label>实验类型</label>
+                <select id="inv-vessel-mode">
+                  <option value="single">单壶实验</option>
+                  <option value="multi">多级联动实验</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>关联已完成实验 <span class="req">*</span></label>
+                <select id="inv-experiment-select">
+                  <option value="">-- 加载可用实验 --</option>
+                </select>
+                <small class="form-help">仅列出已完成（finalized）状态的实验</small>
+              </div>
+
+              <div class="form-group">
+                <label>优化算法</label>
+                <select id="inv-algorithm">
+                  <option value="hybrid_pso_grid">PSO + 网格搜索（推荐）</option>
+                  <option value="pso">粒子群优化 (PSO)</option>
+                  <option value="grid_search">网格搜索</option>
+                  <option value="nelder_mead">Nelder-Mead 单纯形</option>
+                </select>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label>粒子数量</label>
+                  <input type="number" id="inv-particles" min="5" max="200" step="1" value="30">
+                </div>
+                <div class="form-group flex-1">
+                  <label>迭代次数</label>
+                  <input type="number" id="inv-iterations" min="5" max="500" step="1" value="50">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>网格密度（每维度）</label>
+                <input type="number" id="inv-grid-density" min="3" max="20" step="1" value="5">
+              </div>
+
+              <div class="form-group">
+                <label>置信水平 (%)</label>
+                <input type="number" id="inv-confidence" min="80" max="99" step="1" value="95">
+              </div>
+
+              <button type="button" id="inv-run-btn" class="btn btn-primary btn-block" disabled>
+                🔬 运行联合反演
+              </button>
+
+            </div>
+          </section>
+
+          <section class="panel-card collapsible open">
+            <header class="panel-header" data-toggle>
+              <span class="panel-icon">📐</span>
+              <h3>参数搜索范围</h3>
+              <span class="chevron">▾</span>
+            </header>
+            <div class="panel-body" id="inv-param-ranges-body">
+              <div class="placeholder-cell">加载参数范围中...</div>
+            </div>
+          </section>
+
+          <section class="panel-card collapsible">
+            <header class="panel-header" data-toggle>
+              <span class="panel-icon">📜</span>
+              <h3>历史反演结果</h3>
+              <span class="chevron">▾</span>
+            </header>
+            <div class="panel-body">
+              <select id="inv-history-select" class="full-width">
+                <option value="">-- 加载历史结果 --</option>
+              </select>
+              <button type="button" id="inv-load-history-btn" class="btn btn-secondary btn-sm btn-block mt-1" disabled>
+                📂 加载此结果
+              </button>
+            </div>
+          </section>
+        </aside>
+
+        <!-- 右侧：反演结果 -->
+        <section class="right-panel">
+
+          <!-- 运行状态指示 -->
+          <div id="inv-running-panel" class="inv-running-panel" style="display:none;">
+            <div class="inv-running-spinner"></div>
+            <div class="inv-running-text">正在执行联合反演，请耐心等待...</div>
+            <div class="inv-running-sub">粒子群搜索 → 网格精化 → 置信区间估计</div>
+          </div>
+
+          <!-- 结果概览 -->
+          <div id="inv-result-panel" style="display:none;">
+
+            <div class="inv-result-header">
+              <h3>🎯 联合反演结果</h3>
+              <button type="button" id="inv-delete-btn" class="btn btn-ghost btn-sm" style="color:#c0392b;">
+                🗑 删除此结果
+              </button>
+            </div>
+
+            <!-- 最优参数卡片 -->
+            <div class="section-subtitle">最优扰动参数估计</div>
+            <div class="optimal-params-grid" id="inv-optimal-params"></div>
+
+            <!-- 拟合质量指标 -->
+            <div class="section-subtitle">拟合质量评估</div>
+            <div class="fit-metrics-grid" id="inv-fit-metrics"></div>
+
+            <!-- 置信区间可视化 -->
+            <div class="section-subtitle">参数置信区间</div>
+            <div class="panel-card">
+              <div class="panel-body" id="inv-confidence-intervals"></div>
+            </div>
+
+            <!-- 最优候选解排名 -->
+            <div class="section-subtitle">最优候选解 Top 10</div>
+            <div class="table-responsive">
+              <table class="inversion-table" id="inv-top-candidates">
+                <thead>
+                  <tr>
+                    <th>排名</th>
+                    <th>温度(°C)</th>
+                    <th>黏度</th>
+                    <th>注水振幅</th>
+                    <th>孔径磨损</th>
+                    <th>倾斜角(°)</th>
+                    <th>拟合误差</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+
+            <!-- 收敛曲线 -->
+            <div class="section-subtitle">优化收敛历史</div>
+            <div class="panel-card">
+              <div class="panel-body chart-body">
+                <div id="inv-convergence-chart" class="chart-container" style="height: 320px;"></div>
+              </div>
+            </div>
+
+            <!-- 实验-仿真对齐对比图 -->
+            <div class="section-subtitle">实测—仿真水位对齐对比</div>
+            <div class="panel-card">
+              <div class="panel-body chart-body">
+                <div id="inv-aligned-chart" class="chart-container" style="height: 400px;"></div>
+              </div>
+            </div>
+
+            <!-- 校准修复建议 -->
+            <div class="section-subtitle">🛠 校准修复建议</div>
+            <div id="inv-calibration-advice"></div>
+
+            <!-- 自然语言摘要 -->
+            <div class="section-subtitle">📝 结果摘要</div>
+            <div class="panel-card">
+              <div class="panel-body" id="inv-summary"></div>
+            </div>
+
+          </div>
+
+          <!-- 无结果占位 -->
+          <div id="inv-placeholder-panel" class="inv-placeholder-panel">
+            <div class="inv-placeholder-icon">🔬</div>
+            <div class="inv-placeholder-title">配置实验与参数，开始联合反演</div>
+            <div class="inv-placeholder-sub">
+              系统将基于真实实验数据，自动对齐扰动仿真结果，反向估计最贴近现实的五类参数
+            </div>
+          </div>
+
+        </section>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -885,6 +1079,7 @@
 <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
 <script src="{{ url_for('static', path='js/multi_vessel.js') }}"></script>
 <script src="{{ url_for('static', path='js/robustness.js') }}"></script>
+<script src="{{ url_for('static', path='js/inversion.js') }}"></script>
 <script>
   function initMultiVesselMode() {
     if (window.__multiVesselInit__) return;
@@ -919,6 +1114,18 @@
     window.__robustnessInit__ = true;
   }
 
+  function initInversionMode() {
+    if (window.__inversionInit__) return;
+    const raw = window.__APP_DATA__ || {};
+    const ctx = {
+      projectId: raw.project?.id,
+      project: raw.project,
+      errorThreshold: raw.errorThreshold || 5.0,
+    };
+    InversionApp.init(ctx);
+    window.__inversionInit__ = true;
+  }
+
   function switchMode(mode) {
     const modeTabs = document.querySelectorAll('.mode-tab');
     modeTabs.forEach(t => t.classList.remove('active'));
@@ -938,6 +1145,9 @@
     } else if (mode === 'robustness') {
       url.searchParams.set('mode', 'robustness');
       initRobustnessMode();
+    } else if (mode === 'inversion') {
+      url.searchParams.set('mode', 'inversion');
+      initInversionMode();
     } else if (mode === 'single') {
       url.searchParams.set('mode', 'single');
       setTimeout(() => {
@@ -969,6 +1179,8 @@
     const modeParam = params.get('mode');
     if (modeParam === 'robustness') {
       switchMode('robustness');
+    } else if (modeParam === 'inversion') {
+      switchMode('inversion');
     } else if (modeParam === 'multi' || params.get('multi') === '1' || (raw.project?.is_multi_vessel && raw.multi_config?.vessels?.length > 0)) {
       switchMode('multi');
     } else if (modeParam === 'single') {

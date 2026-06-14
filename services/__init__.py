@@ -7,3 +7,6 @@ from services.multi_vessel_service import MultiVesselService  # noqa: F401
 from services.robustness_service import (  # noqa: F401
     RobustnessService, PerturbationPhysics,
 )
+from services.inversion_service import (  # noqa: F401
+    JointInversionService,
+)
