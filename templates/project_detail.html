@@ -1136,20 +1136,19 @@
     const panel = document.getElementById(mode + '-mode');
     if (panel) panel.classList.add('active');
 
-    const url = new URL(window.location);
+    const url = new URL(window.location.href);
+    url.searchParams.set('mode', mode);
     url.searchParams.delete('multi');
-    url.searchParams.delete('mode');
+    window.history.replaceState({ mode }, '', url.toString());
+    sessionStorage.setItem('clepsydra_mode_' + __APP_DATA__.project.id, mode);
+
     if (mode === 'multi') {
-      url.searchParams.set('mode', 'multi');
       initMultiVesselMode();
     } else if (mode === 'robustness') {
-      url.searchParams.set('mode', 'robustness');
       initRobustnessMode();
     } else if (mode === 'inversion') {
-      url.searchParams.set('mode', 'inversion');
       initInversionMode();
     } else if (mode === 'single') {
-      url.searchParams.set('mode', 'single');
       setTimeout(() => {
         const ctx = window.__CTX__;
         if (ctx && ClepsydraCharts) {
@@ -1161,7 +1160,6 @@
         }
       }, 50);
     }
-    window.history.replaceState({}, '', url);
   }
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -1176,15 +1174,17 @@
 
     const params = new URLSearchParams(window.location.search);
     const raw = window.__APP_DATA__ || {};
-    const modeParam = params.get('mode');
-    if (modeParam === 'robustness') {
-      switchMode('robustness');
-    } else if (modeParam === 'inversion') {
-      switchMode('inversion');
-    } else if (modeParam === 'multi' || params.get('multi') === '1' || (raw.project?.is_multi_vessel && raw.multi_config?.vessels?.length > 0)) {
-      switchMode('multi');
-    } else if (modeParam === 'single') {
-      switchMode('single');
+    let initialMode = params.get('mode');
+    if (!initialMode) {
+      initialMode = sessionStorage.getItem('clepsydra_mode_' + raw.project.id);
+    }
+    if (!initialMode) {
+      if (params.get('multi') === '1' || (raw.project?.is_multi_vessel && raw.multi_config?.vessels?.length > 0)) {
+        initialMode = 'multi';
+      }
+    }
+    if (initialMode && ['single', 'multi', 'robustness', 'inversion'].includes(initialMode)) {
+      switchMode(initialMode);
     }
   });
 </script>

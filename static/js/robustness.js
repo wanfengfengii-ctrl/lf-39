@@ -111,56 +111,14 @@
       return el ? el.checked : false;
     };
 
-    const tempMin = getVal('rb-temperature-min');
-    const tempMax = getVal('rb-temperature-max');
-    const tempBase = getVal('rb-temperature-baseline');
-    const viscMin = getVal('rb-viscosity-min');
-    const viscMax = getVal('rb-viscosity-max');
-    const viscBase = getVal('rb-viscosity-baseline');
-    const tiltMin = getVal('rb-tilt-min');
-    const tiltMax = getVal('rb-tilt-max');
-    const tiltBase = getVal('rb-tilt-baseline');
-    const duration = getVal('rb-duration');
-    const timestep = getVal('rb-timestep');
-    const scenarioCount = getVal('rb-scenario-count');
-
-    const errors = [];
-    if (tempMin != null && tempMax != null && tempMin > tempMax)
-      errors.push('温度最小值不能大于最大值');
-    if (tempBase != null && tempMin != null && tempBase < tempMin)
-      errors.push('温度基准值不能小于最小值');
-    if (tempBase != null && tempMax != null && tempBase > tempMax)
-      errors.push('温度基准值不能大于最大值');
-    if (viscMin != null && viscMax != null && viscMin > viscMax)
-      errors.push('黏度最小值不能大于最大值');
-    if (viscBase != null && viscMin != null && viscBase < viscMin)
-      errors.push('黏度基准值不能小于最小值');
-    if (viscBase != null && viscMax != null && viscBase > viscMax)
-      errors.push('黏度基准值不能大于最大值');
-    if (tiltMin != null && tiltMax != null && tiltMin > tiltMax)
-      errors.push('倾斜角最小值不能大于最大值');
-    if (tiltBase != null && tiltMin != null && tiltBase < tiltMin)
-      errors.push('倾斜角基准值不能小于最小值');
-    if (tiltBase != null && tiltMax != null && tiltBase > tiltMax)
-      errors.push('倾斜角基准值不能大于最大值');
-    if (duration != null && timestep != null && timestep > duration)
-      errors.push('时间步长不能大于模拟时长');
-    if (scenarioCount != null && (scenarioCount < 1 || scenarioCount > 500))
-      errors.push('场景数必须在 1-500 之间');
-
-    if (errors.length > 0) {
-      __Toast.error('配置校验失败：<br>' + errors.join('<br>'));
-      return { ok: false, error: errors.join('; ') };
-    }
-
     const payload = {
-      temperature_min: tempMin,
-      temperature_max: tempMax,
-      temperature_baseline: tempBase,
+      temperature_min: getVal('rb-temperature-min'),
+      temperature_max: getVal('rb-temperature-max'),
+      temperature_baseline: getVal('rb-temperature-baseline'),
       temperature_enabled: getChecked('rb-temperature-enabled'),
-      viscosity_min: viscMin,
-      viscosity_max: viscMax,
-      viscosity_baseline: viscBase,
+      viscosity_min: getVal('rb-viscosity-min'),
+      viscosity_max: getVal('rb-viscosity-max'),
+      viscosity_baseline: getVal('rb-viscosity-baseline'),
       viscosity_enabled: getChecked('rb-viscosity-enabled'),
       inflow_fluctuation_amplitude: getVal('rb-inflow-amplitude'),
       inflow_fluctuation_frequency: getVal('rb-inflow-frequency'),
@@ -168,14 +126,42 @@
       orifice_wear_rate: getVal('rb-orifice-wear-rate'),
       orifice_wear_max: getVal('rb-orifice-wear-max'),
       orifice_wear_enabled: getChecked('rb-orifice-enabled'),
-      tilt_angle_min: tiltMin,
-      tilt_angle_max: tiltMax,
-      tilt_angle_baseline: tiltBase,
+      tilt_angle_min: getVal('rb-tilt-min'),
+      tilt_angle_max: getVal('rb-tilt-max'),
+      tilt_angle_baseline: getVal('rb-tilt-baseline'),
       tilt_enabled: getChecked('rb-tilt-enabled'),
-      simulation_duration: duration,
-      time_step: timestep,
-      scenario_count: scenarioCount,
+      simulation_duration: getVal('rb-duration'),
+      time_step: getVal('rb-timestep'),
+      scenario_count: getVal('rb-scenario-count'),
     };
+
+    const errors = [];
+    const _v = (v) => (v === null || isNaN(v) ? null : v);
+    const tmin = _v(payload.temperature_min), tmax = _v(payload.temperature_max);
+    if (tmin !== null && tmax !== null && tmin > tmax) {
+      errors.push(`温度最小值(${tmin}°C)不能大于最大值(${tmax}°C)`);
+    }
+    const vmin = _v(payload.viscosity_min), vmax = _v(payload.viscosity_max);
+    if (vmin !== null && vmax !== null && vmin > vmax) {
+      errors.push(`黏度最小值(${vmin})不能大于最大值(${vmax})`);
+    }
+    const amin = _v(payload.tilt_angle_min), amax = _v(payload.tilt_angle_max);
+    if (amin !== null && amax !== null && amin > amax) {
+      errors.push(`倾斜角最小值(${amin}°)不能大于最大值(${amax}°)`);
+    }
+    const wr = _v(payload.orifice_wear_rate), wm = _v(payload.orifice_wear_max);
+    if (wr !== null && wm !== null && wr > wm) {
+      errors.push(`磨损速率(${wr})不能大于最大磨损比(${wm})`);
+    }
+    const dur = _v(payload.simulation_duration), step = _v(payload.time_step);
+    if (step !== null && dur !== null && step > dur) {
+      errors.push(`时间步长(${step})不能大于模拟时长(${dur})`);
+    }
+    if (errors.length) {
+      __Toast.error('配置校验失败：' + errors.join('；'));
+      return false;
+    }
+
     const btn = document.getElementById('robustness-save-config-btn');
     if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
     const { ok, data } = await __apiJson(RobustnessApp.apiUrl('/robustness/config'), {
@@ -185,18 +171,17 @@
     if (ok && data?.ok) {
       ctx.robustnessConfig = data.config;
       __Toast.success('扰动配置已保存');
-      return { ok: true };
+      return true;
     } else {
-      const err = data?.error || '保存失败';
-      __Toast.error(err);
-      return { ok: false, error: err };
+      __Toast.error(data?.error || '保存失败');
+      return false;
     }
   };
 
   RobustnessApp.runSimulation = async function () {
-    const saveResult = await RobustnessApp.saveConfig();
-    if (!saveResult || !saveResult.ok) {
-      __Toast.error('配置保存失败，请修正后重试');
+    const saveOk = await RobustnessApp.saveConfig();
+    if (!saveOk) {
+      __Toast.error('配置保存失败，请修正后再运行模拟');
       return;
     }
     const btn = document.getElementById('robustness-run-btn');
