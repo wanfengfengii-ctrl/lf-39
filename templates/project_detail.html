@@ -46,6 +46,10 @@
       <span class="mode-icon">🔗</span>
       <span>双壶串联/多级联动</span>
     </button>
+    <button class="mode-tab" data-mode="robustness">
+      <span class="mode-icon">🌡</span>
+      <span>环境扰动与稳健性评估</span>
+    </button>
   </div>
 
   <div class="project-body">
@@ -529,6 +533,233 @@
       </section>
     </div>
 
+    <!-- ============ 环境扰动与稳健性评估模式 ============ -->
+    <div id="robustness-mode" class="mode-panel">
+      <div class="robustness-layout">
+
+        <!-- 左侧：扰动配置 -->
+        <aside class="left-panel">
+          <section class="panel-card collapsible open">
+            <header class="panel-header" data-toggle>
+              <span class="panel-icon">🌡</span>
+              <h3>扰动条件配置</h3>
+              <span class="chevron">▾</span>
+            </header>
+            <div class="panel-body">
+
+              <div class="perturbation-section">
+                <div class="perturbation-section-header">
+                  <span class="perturbation-section-title">🌡 环境温度</span>
+                  <label class="perturbation-toggle">
+                    <input type="checkbox" id="rb-temperature-enabled" checked> 启用
+                  </label>
+                </div>
+                <div class="perturbation-section-body">
+                  <div class="form-group">
+                    <label>最低温度 (°C)</label>
+                    <input type="number" id="rb-temperature-min" step="0.5" value="10">
+                  </div>
+                  <div class="form-group">
+                    <label>最高温度 (°C)</label>
+                    <input type="number" id="rb-temperature-max" step="0.5" value="40">
+                  </div>
+                  <div class="form-group full">
+                    <label>基准温度 (°C)</label>
+                    <input type="number" id="rb-temperature-baseline" step="0.5" value="20">
+                  </div>
+                </div>
+              </div>
+
+              <div class="perturbation-section">
+                <div class="perturbation-section-header">
+                  <span class="perturbation-section-title">💧 液体黏度</span>
+                  <label class="perturbation-toggle">
+                    <input type="checkbox" id="rb-viscosity-enabled" checked> 启用
+                  </label>
+                </div>
+                <div class="perturbation-section-body">
+                  <div class="form-group">
+                    <label>最小黏度系数</label>
+                    <input type="number" id="rb-viscosity-min" step="0.05" min="0.1" value="0.8">
+                  </div>
+                  <div class="form-group">
+                    <label>最大黏度系数</label>
+                    <input type="number" id="rb-viscosity-max" step="0.05" min="0.1" value="1.8">
+                  </div>
+                  <div class="form-group full">
+                    <label>基准黏度系数</label>
+                    <input type="number" id="rb-viscosity-baseline" step="0.05" min="0.1" value="1.0">
+                  </div>
+                </div>
+              </div>
+
+              <div class="perturbation-section">
+                <div class="perturbation-section-header">
+                  <span class="perturbation-section-title">〰 注水波动</span>
+                  <label class="perturbation-toggle">
+                    <input type="checkbox" id="rb-inflow-enabled" checked> 启用
+                  </label>
+                </div>
+                <div class="perturbation-section-body">
+                  <div class="form-group">
+                    <label>波动幅度 (0-1)</label>
+                    <input type="number" id="rb-inflow-amplitude" step="0.01" min="0" max="1" value="0.1">
+                  </div>
+                  <div class="form-group">
+                    <label>波动频率</label>
+                    <input type="number" id="rb-inflow-frequency" step="0.1" min="0" value="0.5">
+                  </div>
+                </div>
+              </div>
+
+              <div class="perturbation-section">
+                <div class="perturbation-section-header">
+                  <span class="perturbation-section-title">⏳ 孔径磨损</span>
+                  <label class="perturbation-toggle">
+                    <input type="checkbox" id="rb-orifice-enabled" checked> 启用
+                  </label>
+                </div>
+                <div class="perturbation-section-body">
+                  <div class="form-group">
+                    <label>磨损速率</label>
+                    <input type="number" id="rb-orifice-wear-rate" step="0.01" min="0" value="0.02">
+                  </div>
+                  <div class="form-group">
+                    <label>最大磨损比</label>
+                    <input type="number" id="rb-orifice-wear-max" step="0.01" min="0" max="1" value="0.3">
+                  </div>
+                </div>
+              </div>
+
+              <div class="perturbation-section">
+                <div class="perturbation-section-header">
+                  <span class="perturbation-section-title">📐 容器倾斜</span>
+                  <label class="perturbation-toggle">
+                    <input type="checkbox" id="rb-tilt-enabled" checked> 启用
+                  </label>
+                </div>
+                <div class="perturbation-section-body">
+                  <div class="form-group">
+                    <label>最小角度 (°)</label>
+                    <input type="number" id="rb-tilt-min" step="0.1" min="0" value="0">
+                  </div>
+                  <div class="form-group">
+                    <label>最大角度 (°)</label>
+                    <input type="number" id="rb-tilt-max" step="0.1" min="0" max="45" value="5">
+                  </div>
+                  <div class="form-group full">
+                    <label>基准角度 (°)</label>
+                    <input type="number" id="rb-tilt-baseline" step="0.1" min="0" value="0">
+                  </div>
+                </div>
+              </div>
+
+              <div class="perturbation-section">
+                <div class="perturbation-section-header">
+                  <span class="perturbation-section-title">⚙️ 模拟参数</span>
+                </div>
+                <div class="perturbation-section-body">
+                  <div class="form-group">
+                    <label>模拟时长 (分)</label>
+                    <input type="number" id="rb-duration" step="1" min="1" value="60">
+                  </div>
+                  <div class="form-group">
+                    <label>时间步长 (分)</label>
+                    <input type="number" id="rb-timestep" step="0.05" min="0.01" value="0.5">
+                  </div>
+                  <div class="form-group full">
+                    <label>生成场景数</label>
+                    <input type="number" id="rb-scenario-count" step="1" min="1" max="500" value="50">
+                  </div>
+                </div>
+              </div>
+
+              <button type="button" id="robustness-save-config-btn" class="btn btn-secondary btn-block">
+                💾 保存扰动配置
+              </button>
+              <button type="button" id="robustness-run-btn" class="btn btn-primary btn-block mt-1">
+                ▶ 运行批量模拟
+              </button>
+
+            </div>
+          </section>
+        </aside>
+
+        <!-- 右侧：评估结果 -->
+        <section class="right-panel">
+          <div class="robustness-toolbar">
+            <div class="robustness-toolbar-left">
+              <label class="robustness-mode-toggle">
+                <input type="checkbox" id="robustness-multi-toggle"> 多级漏刻模式
+              </label>
+              <select id="robustness-scenario-select" class="robustness-scenario-select">
+                <option value="">-- 选择场景查看详情 --</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="stability-score-card">
+            <div class="stability-score" id="rb-score">--</div>
+            <div class="stability-grade" id="rb-grade">未评估</div>
+            <div class="kpi-row" style="margin-top: 16px;">
+              <div class="kpi-card"><div class="kpi-label">平均误差</div><div class="kpi-value" id="rb-avg-err">--</div></div>
+              <div class="kpi-card"><div class="kpi-label">最大误差</div><div class="kpi-value warn" id="rb-max-err">--</div></div>
+              <div class="kpi-card"><div class="kpi-label">误差标准差</div><div class="kpi-value" id="rb-err-std">--</div></div>
+              <div class="kpi-card"><div class="kpi-label">场景故障率</div><div class="kpi-value danger" id="rb-fail-rate">--</div></div>
+            </div>
+          </div>
+
+          <div id="rb-summary"></div>
+
+          <div class="panel-card">
+            <header class="panel-header">
+              <span class="panel-icon">📊</span>
+              <h3>参数敏感度分析</h3>
+            </header>
+            <div class="panel-body">
+              <div class="chart-container" id="rb-sensitivity" style="height: 280px;"></div>
+              <div class="section-subtitle">敏感参数排序</div>
+              <div class="table-responsive">
+                <table class="interval-error-table" id="rb-ranking"></table>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <header class="panel-header">
+              <span class="panel-icon">📈</span>
+              <h3>各场景误差对比</h3>
+            </header>
+            <div class="panel-body">
+              <div class="chart-container" id="rb-scenarios-chart" style="height: 360px;"></div>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <header class="panel-header">
+              <span class="panel-icon">🛠</span>
+              <h3>抗扰动校准建议</h3>
+            </header>
+            <div class="panel-body">
+              <div id="rb-advice"></div>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <header class="panel-header">
+              <span class="panel-icon">🔬</span>
+              <h3>单场景水位曲线</h3>
+            </header>
+            <div class="panel-body">
+              <div id="robustness-scenario-detail"></div>
+              <div class="chart-container" id="robustness-scenario-chart" style="height: 340px;"></div>
+            </div>
+          </div>
+
+        </section>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -653,6 +884,7 @@
 {% block scripts %}
 <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
 <script src="{{ url_for('static', path='js/multi_vessel.js') }}"></script>
+<script src="{{ url_for('static', path='js/robustness.js') }}"></script>
 <script>
   function initMultiVesselMode() {
     if (window.__multiVesselInit__) return;
@@ -673,6 +905,18 @@
     MultiVesselApp.init(ctx);
     window.__multiVesselCtx__ = ctx;
     window.__multiVesselInit__ = true;
+  }
+
+  function initRobustnessMode() {
+    if (window.__robustnessInit__) return;
+    const raw = window.__APP_DATA__ || {};
+    const ctx = {
+      projectId: raw.project?.id,
+      project: raw.project,
+      errorThreshold: raw.errorThreshold || 5.0,
+    };
+    RobustnessApp.init(ctx);
+    window.__robustnessInit__ = true;
   }
 
   function switchMode(mode) {
@@ -698,6 +942,8 @@
           );
         }
       }, 50);
+    } else if (mode === 'robustness') {
+      initRobustnessMode();
     }
   }
 

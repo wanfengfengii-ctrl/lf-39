@@ -8,12 +8,13 @@ from sqlalchemy.orm import Session
 
 from database.connection import get_db
 from database import models
-from services import ProjectService, ValidationError, AnalysisService, MultiVesselService
+from services import ProjectService, ValidationError, AnalysisService, MultiVesselService, RobustnessService
 from schemas import (
     ProjectCreate, ClepsydraConfigUpdate, ScaleSchemeUpdate,
     ExperimentRecordCreate, ScaleMarkData,
     VesselCreate, VesselUpdate, VesselFlowRelationCreate,
     VesselBatchRecordCreate,
+    PerturbationConfigUpdate,
 )
 
 router = APIRouter(prefix="/api", tags=["projects"])
@@ -478,3 +479,85 @@ async def get_joint_scale_adjustment(
     except ValueError as e:
         return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
     return {"ok": True, "adjustment": adjustment.model_dump(mode="json")}
+
+
+# ============ 环境扰动模拟与稳健性评估 API ============
+
+@router.get("/projects/{project_id}/robustness/config")
+async def get_perturbation_config(project_id: int, db: Session = Depends(get_db)):
+    try:
+        cfg = RobustnessService.get_config(db, project_id)
+    except ValidationError as e:
+        return _handle_validation_error(e)
+    return {"ok": True, "config": cfg.model_dump(mode="json")}
+
+
+@router.post("/projects/{project_id}/robustness/config")
+async def update_perturbation_config(
+    project_id: int, request: Request, db: Session = Depends(get_db)
+):
+    try:
+        payload = await request.json()
+        data = PerturbationConfigUpdate(**payload)
+    except Exception as e:
+        return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
+    try:
+        cfg = RobustnessService.update_config(db, project_id, data)
+    except ValidationError as e:
+        return _handle_validation_error(e)
+    return {"ok": True, "config": cfg.model_dump(mode="json")}
+
+
+@router.post("/projects/{project_id}/robustness/simulate")
+async def run_robustness_simulation(
+    project_id: int, request: Request, db: Session = Depends(get_db)
+):
+    try:
+        payload = await request.json()
+        is_multi_vessel = bool(payload.get("is_multi_vessel", False))
+        scenario_count = payload.get("scenario_count")
+        if scenario_count is not None:
+            scenario_count = int(scenario_count)
+    except Exception as e:
+        return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
+    try:
+        result = RobustnessService.run_batch_simulation(
+            db, project_id, is_multi_vessel, scenario_count
+        )
+    except ValidationError as e:
+        return _handle_validation_error(e)
+    return {"ok": result.ok, "result": result.model_dump()}
+
+
+@router.get("/projects/{project_id}/robustness/scenarios")
+async def list_simulation_scenarios(
+    project_id: int,
+    is_multi_vessel: Optional[bool] = False,
+    db: Session = Depends(get_db),
+):
+    scenarios = RobustnessService.list_scenarios(db, project_id, bool(is_multi_vessel))
+    return {"ok": True, "scenarios": [s.model_dump(mode="json") for s in scenarios]}
+
+
+@router.get("/robustness/scenarios/{scenario_id}")
+async def get_simulation_scenario_detail(scenario_id: int, db: Session = Depends(get_db)):
+    try:
+        detail = RobustnessService.get_scenario_detail(db, scenario_id)
+    except ValidationError as e:
+        return _handle_validation_error(e)
+    return {"ok": True, "detail": detail.model_dump(mode="json")}
+
+
+@router.get("/projects/{project_id}/robustness/assessment")
+async def get_robustness_assessment(
+    project_id: int,
+    is_multi_vessel: Optional[bool] = False,
+    db: Session = Depends(get_db),
+):
+    assessment = RobustnessService.get_assessment(db, project_id, bool(is_multi_vessel))
+    if assessment is None:
+        return JSONResponse(
+            status_code=422,
+            content={"ok": False, "error": "尚未运行模拟，请先执行批量模拟"},
+        )
+    return {"ok": True, "assessment": assessment.model_dump(mode="json")}

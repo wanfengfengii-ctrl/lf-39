@@ -177,3 +177,112 @@ class VesselExperimentRecord(Base):
 
     experiment = relationship("Experiment", back_populates="vessel_records")
     vessel = relationship("Vessel", back_populates="records")
+
+
+class PerturbationConfig(Base):
+    __tablename__ = "perturbation_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), unique=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    temperature_min = Column(Float, default=10.0)
+    temperature_max = Column(Float, default=40.0)
+    temperature_baseline = Column(Float, default=20.0)
+    temperature_enabled = Column(Boolean, default=True)
+
+    viscosity_min = Column(Float, default=0.8)
+    viscosity_max = Column(Float, default=1.8)
+    viscosity_baseline = Column(Float, default=1.0)
+    viscosity_enabled = Column(Boolean, default=True)
+
+    inflow_fluctuation_amplitude = Column(Float, default=0.1)
+    inflow_fluctuation_frequency = Column(Float, default=0.5)
+    inflow_fluctuation_enabled = Column(Boolean, default=True)
+
+    orifice_wear_rate = Column(Float, default=0.02)
+    orifice_wear_max = Column(Float, default=0.3)
+    orifice_wear_enabled = Column(Boolean, default=True)
+
+    tilt_angle_min = Column(Float, default=0.0)
+    tilt_angle_max = Column(Float, default=5.0)
+    tilt_angle_baseline = Column(Float, default=0.0)
+    tilt_enabled = Column(Boolean, default=True)
+
+    simulation_duration = Column(Float, default=60.0)
+    time_step = Column(Float, default=0.5)
+    scenario_count = Column(Integer, default=50)
+
+    project = relationship("Project")
+
+
+class SimulationScenario(Base):
+    __tablename__ = "simulation_scenarios"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    config_id = Column(Integer, ForeignKey("perturbation_configs.id"), nullable=True)
+    scenario_index = Column(Integer, nullable=False)
+    name = Column(String(100), nullable=False)
+    is_multi_vessel = Column(Boolean, default=False)
+    status = Column(String(20), default="pending")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+    temperature = Column(Float, nullable=True)
+    viscosity = Column(Float, nullable=True)
+    inflow_amplitude = Column(Float, nullable=True)
+    orifice_wear = Column(Float, nullable=True)
+    tilt_angle = Column(Float, nullable=True)
+    params = Column(JSON, nullable=True)
+
+    project = relationship("Project")
+    config = relationship("PerturbationConfig")
+    results = relationship(
+        "SimulationResult", back_populates="scenario",
+        cascade="all, delete-orphan"
+    )
+
+
+class SimulationResult(Base):
+    __tablename__ = "simulation_results"
+
+    id = Column(Integer, primary_key=True, index=True)
+    scenario_id = Column(Integer, ForeignKey("simulation_scenarios.id"), nullable=False)
+    vessel_id = Column(Integer, ForeignKey("vessels.id"), nullable=True)
+    vessel_name = Column(String(50), nullable=True)
+
+    time_point = Column(Float, nullable=False)
+    water_level = Column(Float, nullable=False)
+    expected_level = Column(Float, nullable=True)
+    flow_rate = Column(Float, nullable=True)
+    inflow_rate = Column(Float, nullable=True)
+    time_error = Column(Float, nullable=True)
+    level_error = Column(Float, nullable=True)
+
+    scenario = relationship("SimulationScenario", back_populates="results")
+
+
+class RobustnessAssessment(Base):
+    __tablename__ = "robustness_assessments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    config_id = Column(Integer, ForeignKey("perturbation_configs.id"), nullable=True)
+    is_multi_vessel = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    overall_stability_score = Column(Float, nullable=True)
+    avg_error = Column(Float, nullable=True)
+    max_error = Column(Float, nullable=True)
+    error_std = Column(Float, nullable=True)
+    failure_rate = Column(Float, nullable=True)
+
+    sensitivity_scores = Column(JSON, nullable=True)
+    parameter_ranking = Column(JSON, nullable=True)
+    calibration_advice = Column(JSON, nullable=True)
+    summary = Column(Text, nullable=True)
+
+    project = relationship("Project")
+    config = relationship("PerturbationConfig")

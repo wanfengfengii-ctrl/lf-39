@@ -20,3 +20,9 @@ from schemas.multi_vessel import (  # noqa: F401
     MultiVesselAnalysisOut,
     JointAdjustmentStep, JointScaleAdjustmentOut,
 )
+from schemas.robustness import (  # noqa: F401
+    PerturbationConfigUpdate, PerturbationConfigOut,
+    SimulationScenarioOut, SimulationResultPoint, SimulationScenarioDetail,
+    SensitivityScore, ParameterRanking, CalibrationAdvice, ScenarioSummary,
+    RobustnessAssessmentOut, SimulationRunRequest, BatchSimulationOut,
+)

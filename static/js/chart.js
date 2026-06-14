@@ -464,4 +464,5 @@
 
   global.ClepsydraCharts = ClepsydraCharts;
   global.__VESSEL_PALETTE__ = VESSEL_PALETTE;
+  global.__makeChartLayout = baseLayout;
 })(window);

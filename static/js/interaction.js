@@ -611,4 +611,6 @@
   }
 
   global.ClepsydraApp = ClepsydraApp;
+  global.__apiJson = apiJson;
+  global.__submitForm = submitForm;
 })(window);
