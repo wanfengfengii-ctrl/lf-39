@@ -195,6 +195,7 @@ class ProjectService:
         ]
         return ScaleSchemeOut(
             id=scheme.id,
+            vessel_id=scheme.vessel_id,
             version=scheme.version,
             created_at=scheme.created_at,
             marks=marks,

@@ -280,6 +280,14 @@ class MultiVesselService:
         if data.upstream_vessel_id == data.downstream_vessel_id:
             raise ValidationError("上游和下游容器不能相同")
 
+        duplicate = db.query(models.VesselFlowRelation).filter(
+            models.VesselFlowRelation.project_id == project_id,
+            models.VesselFlowRelation.upstream_vessel_id == data.upstream_vessel_id,
+            models.VesselFlowRelation.downstream_vessel_id == data.downstream_vessel_id,
+        ).first()
+        if duplicate:
+            raise ValidationError("该上下游流量关系已存在，不可重复添加")
+
         rel = models.VesselFlowRelation(
             project_id=project_id,
             upstream_vessel_id=data.upstream_vessel_id,
@@ -330,7 +338,7 @@ class MultiVesselService:
             )
             for m in scheme.marks
         ]
-        return ScaleSchemeOut(id=scheme.id, version=scheme.version, created_at=scheme.created_at, marks=marks)
+        return ScaleSchemeOut(id=scheme.id, vessel_id=scheme.vessel_id, version=scheme.version, created_at=scheme.created_at, marks=marks)
 
     @staticmethod
     def update_vessel_scale_scheme(
@@ -414,6 +422,19 @@ class MultiVesselService:
             raise ValidationError("此实验不是多级漏刻实验")
         if exp.status != "recording":
             raise ValidationError("只能在实验进行中录入记录")
+
+        from sqlalchemy import func as sa_func
+        existing_max_time = db.query(sa_func.max(
+            models.VesselExperimentRecord.time_point
+        )).filter(
+            models.VesselExperimentRecord.experiment_id == experiment_id
+        ).scalar()
+
+        if existing_max_time is not None and data.time_point <= existing_max_time:
+            raise ValidationError(
+                f"时间节点必须递增，当前最大已录时间为 {existing_max_time} 分钟，"
+                f"请输入大于 {existing_max_time} 的时间"
+            )
 
         vessels = {v.id: v for v in db.query(models.Vessel).filter(
             models.Vessel.project_id == project_id

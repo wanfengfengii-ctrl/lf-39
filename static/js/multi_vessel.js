@@ -311,30 +311,52 @@
     if (relationForm) {
       relationForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const payload = {
-          upstream_vessel_id: parseInt(relationForm.upstream_vessel_id.value, 10),
-          downstream_vessel_id: parseInt(relationForm.downstream_vessel_id.value, 10),
-          flow_coefficient: parseFloat(relationForm.flow_coefficient.value),
-          delay_seconds: parseFloat(relationForm.delay_seconds.value),
-          relation_type: relationForm.relation_type.value,
-        };
+        const submitBtn = relationForm.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = true;
+        try {
+          const upId = parseInt(relationForm.upstream_vessel_id.value, 10);
+          const downId = parseInt(relationForm.downstream_vessel_id.value, 10);
 
-        const { data } = await apiJson(
-          `/api/projects/${ctx.projectId}/multi-vessel/relations`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: payload
+          if (upId === downId) {
+            __Toast.warn('上游和下游容器不能相同');
+            return;
           }
-        );
 
-        if (data?.ok) {
-          __Toast.success('已添加流量关系');
-          closeRelationModal();
-          await reloadMultiConfig(ctx);
-          renderRelations();
-        } else {
-          __Toast.error(data?.error || '添加失败');
+          const existRel = (ctx.multiConfig?.flow_relations || []).find(
+            r => r.upstream_vessel_id === upId && r.downstream_vessel_id === downId
+          );
+          if (existRel) {
+            __Toast.warn('该上下游流量关系已存在');
+            return;
+          }
+
+          const payload = {
+            upstream_vessel_id: upId,
+            downstream_vessel_id: downId,
+            flow_coefficient: parseFloat(relationForm.flow_coefficient.value),
+            delay_seconds: parseFloat(relationForm.delay_seconds.value),
+            relation_type: relationForm.relation_type.value,
+          };
+
+          const { data } = await apiJson(
+            `/api/projects/${ctx.projectId}/multi-vessel/relations`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: payload
+            }
+          );
+
+          if (data?.ok) {
+            __Toast.success('已添加流量关系');
+            closeRelationModal();
+            await reloadMultiConfig(ctx);
+            renderRelations();
+          } else {
+            __Toast.error(data?.error || '添加失败');
+          }
+        } finally {
+          if (submitBtn) submitBtn.disabled = false;
         }
       });
     }
@@ -579,7 +601,12 @@
       if (data?.ok && data.analysis) {
         ctx.multiAnalysis = data.analysis;
         const vessels = ctx.multiConfig?.vessels || [];
-        ClepsydraCharts.renderMultiVesselWaterLevel('multi-water-chart', data.analysis, vessels, []);
+        const schemes = data.vessel_scale_schemes || [];
+        if (schemes.length > 0) {
+          ctx.cachedVesselSchemes = schemes;
+        }
+
+        ClepsydraCharts.renderMultiVesselWaterLevel('multi-water-chart', data.analysis, vessels, schemes);
         ClepsydraCharts.renderInterVesselFlowError('multi-flow-error-chart', data.analysis);
         ClepsydraCharts.renderErrorAmplification('multi-error-amp-chart', data.analysis);
         renderAnalysisDetail(data.analysis);
@@ -740,6 +767,20 @@
         if (!exp) { __Toast.warn('请先创建实验'); return; }
 
         const timePoint = parseFloat(recordForm.time_point.value);
+        if (isNaN(timePoint) || timePoint < 0) {
+          __Toast.warn('请输入有效的时间节点');
+          return;
+        }
+        const existingTimes = (exp.vessel_records || [])
+          .map(r => r.time_point)
+          .filter((v, i, a) => a.indexOf(v) === i);
+        if (existingTimes.length > 0) {
+          const maxTime = Math.max(...existingTimes);
+          if (timePoint <= maxTime) {
+            __Toast.warn(`时间节点必须递增，当前最大已录时间为 ${maxTime} 分钟`);
+            return;
+          }
+        }
         const inputs = recordForm.querySelectorAll('[data-vessel-id]');
         const records = [];
         inputs.forEach(input => {
@@ -796,6 +837,12 @@
             }
             if (data.project_status && ctx.project) {
               ctx.project.status = data.project_status;
+            }
+            if (data.analysis) {
+              ctx.multiAnalysis = data.analysis;
+            }
+            if (data.vessel_scale_schemes && data.vessel_scale_schemes.length > 0) {
+              ctx.cachedVesselSchemes = data.vessel_scale_schemes;
             }
             __Toast.success(`分析完成 · 平均误差 ${data.avg_error}%`);
             renderAll();

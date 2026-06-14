@@ -7,6 +7,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from database.connection import get_db
+from database import models
 from services import ProjectService, ValidationError, AnalysisService, MultiVesselService
 from schemas import (
     ProjectCreate, ClepsydraConfigUpdate, ScaleSchemeUpdate,
@@ -410,6 +411,12 @@ async def finalize_multi_experiment(
             ).model_dump()
             for r in exp.vessel_records
         ]
+    vessel_scale_schemes = []
+    vessels = db.query(models.Vessel).filter(models.Vessel.project_id == project_id).all()
+    for v in vessels:
+        scheme = MultiVesselService.get_vessel_scale_scheme(db, project_id, v.id)
+        if scheme:
+            vessel_scale_schemes.append(scheme.model_dump(mode="json"))
     return {
         "ok": True,
         "avg_error": avg_error,
@@ -417,6 +424,7 @@ async def finalize_multi_experiment(
         "project_status": project.status if project else None,
         "analysis": analysis.model_dump(mode="json"),
         "vessel_records": vessel_records,
+        "vessel_scale_schemes": vessel_scale_schemes,
     }
 
 
@@ -440,7 +448,13 @@ async def get_multi_analysis(
         analysis = MultiVesselService.get_multi_analysis(db, project_id, exp_id)
     except ValueError as e:
         return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
-    return {"ok": True, "analysis": analysis.model_dump(mode="json")}
+    vessel_scale_schemes = []
+    vessels = db.query(models.Vessel).filter(models.Vessel.project_id == project_id).all()
+    for v in vessels:
+        scheme = MultiVesselService.get_vessel_scale_scheme(db, project_id, v.id)
+        if scheme:
+            vessel_scale_schemes.append(scheme.model_dump(mode="json"))
+    return {"ok": True, "analysis": analysis.model_dump(mode="json"), "vessel_scale_schemes": vessel_scale_schemes}
 
 
 @router.get("/projects/{project_id}/multi-vessel/joint-adjustment")

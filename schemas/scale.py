@@ -46,6 +46,7 @@ class ScaleSchemeOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: Optional[int] = None
+    vessel_id: Optional[int] = None
     version: int = 1
     created_at: Optional[datetime] = None
     marks: List[ScaleMarkOut] = []
