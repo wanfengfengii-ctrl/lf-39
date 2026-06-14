@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}新建项目 · 漏刻复原研究系统{% endblock %}
+{% block content %}
+
+<section class="form-page">
+  <div class="form-card">
+    <div class="form-header">
+      <a class="back-link" href="/">← 返回项目总览</a>
+      <h2>新建实验项目</h2>
+      <p class="form-subtitle">为漏刻复原研究建立一份档案，包含基础信息、结构配置与刻度方案。</p>
+    </div>
+
+    <form id="new-project-form" method="POST" action="/api/projects" class="form-body" novalidate>
+      <div class="form-group">
+        <label for="name">项目名称 <span class="req">*</span></label>
+        <input type="text" id="name" name="name" required minlength="2" maxlength="100"
+               placeholder="例如：西汉铜漏壶复原研究（河北满城）">
+        <small class="form-hint">2–100 字符，清晰标识该项目的研究对象。</small>
+      </div>
+
+      <div class="form-group">
+        <label for="researcher">研究人员</label>
+        <input type="text" id="researcher" name="researcher" maxlength="50"
+               placeholder="例如：张衡 / 郭守敬课题组">
+      </div>
+
+      <div class="form-group">
+        <label for="description">研究目标与描述</label>
+        <textarea id="description" name="description" rows="4" maxlength="500"
+                  placeholder="简要说明漏壶年代、出土地、形制特点、拟采用的校准方法与预期目标等。"></textarea>
+        <small class="form-hint">最多 500 字，后续可在项目内补充文档。</small>
+      </div>
+
+      <div class="form-actions">
+        <a class="btn btn-ghost" href="/">取消</a>
+        <button type="submit" class="btn btn-primary">
+          创建项目并开始配置 →
+        </button>
+      </div>
+    </form>
+  </div>
+</section>
+
+{% endblock %}
+{% block scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    ClepsydraForms.initNewProjectForm();
+  });
+</script>
+{% endblock %}

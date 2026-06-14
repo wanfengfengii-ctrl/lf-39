@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}项目总览 · 漏刻复原研究系统{% endblock %}
+{% block content %}
+
+<section class="index-hero">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <h2 class="hero-title">科学复原古代漏刻</h2>
+      <p class="hero-desc">
+        通过配置化的注水实验与数字化分析，帮助研究团队校准不同结构的古代漏壶，
+        量化水位、流速与计时误差的关系，还原千年前的计时智慧。
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary btn-lg" href="/projects/new">
+          <span class="btn-icon">＋</span> 新建实验项目
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-item">
+          <span class="stat-num">{{ projects|length }}</span>
+          <span class="stat-label">实验项目</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-num">{{ projects | sum(attribute='experiment_count') if projects else 0 }}</span>
+          <span class="stat-label">累计实验轮次</span>
+        </div>
+      </div>
+    </div>
+    <div class="hero-visual" aria-hidden="true">
+      <div class="clepsydra-illustration">
+        <div class="pot">
+          <div class="pot-rim"></div>
+          <div class="pot-body">
+            <div class="water-level" style="height: 62%;"></div>
+            <div class="scale-lines">
+              {% for i in range(11) %}
+              <div class="scale-line" style="bottom: {{ i * 10 }}%;">
+                <span class="scale-tick"></span>
+                <span class="scale-label">{{ 10 - i }}0%</span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="pot-outlet">
+            <div class="drip"></div>
+          </div>
+        </div>
+        <div class="drops">
+          <span class="drop d1"></span>
+          <span class="drop d2"></span>
+          <span class="drop d3"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="project-list-section">
+  <div class="section-header">
+    <h3>我的研究项目</h3>
+    <span class="section-hint">共 {{ projects|length }} 项</span>
+  </div>
+
+  {% if not projects %}
+  <div class="empty-state">
+    <div class="empty-icon">📜</div>
+    <p>尚未创建任何研究项目</p>
+    <a class="btn btn-secondary" href="/projects/new">开始第一项研究</a>
+  </div>
+  {% else %}
+  <div class="project-grid">
+    {% for p in projects %}
+    <a class="project-card" href="/projects/{{ p.id }}">
+      <div class="card-head">
+        <span class="status-badge status-{{ p.status }}">
+          {% if p.status == 'draft' %}草稿
+          {% elif p.status == 'configured' %}已配置
+          {% elif p.status == 'ready' %}待实验
+          {% elif p.status == 'experimenting' %}实验中
+          {% else %}{{ p.status }}{% endif %}
+        </span>
+        {% if p.needs_recheck %}
+        <span class="badge badge-warn" title="结构参数变更，历史结论待复核">
+          <span class="badge-dot"></span> 待复核
+        </span>
+        {% endif %}
+      </div>
+      <h4 class="card-title">{{ p.name }}</h4>
+      {% if p.description %}
+      <p class="card-desc">{{ p.description }}</p>
+      {% endif %}
+      <div class="card-meta">
+        <div class="meta-item">
+          <span class="meta-label">研究人员</span>
+          <span class="meta-value">{{ p.researcher or '未指定' }}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">实验轮次</span>
+          <span class="meta-value highlight">第 {{ p.last_round or 0 }} 轮</span>
+        </div>
+      </div>
+      <div class="card-foot">
+        <span class="card-time">{{ p.created_at.strftime('%Y年%m月%d日') }} 建立</span>
+        <span class="card-arrow">→</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+
+<a class="fab" href="/projects/new" title="新建项目">
+  <span class="fab-icon">＋</span>
+</a>
+
+{% endblock %}
