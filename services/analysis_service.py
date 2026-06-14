@@ -108,7 +108,24 @@ class AnalysisService:
         exp.finalized_at = exp.finalized_at or __import__("datetime").datetime.utcnow()
 
         db.commit()
-        return avg_error, count
+        db.refresh(exp)
+
+        project = (
+            db.query(models.Project)
+            .filter(models.Project.id == project_id)
+            .first()
+        )
+        if project and project.status not in ("completed",):
+            project.status = "completed"
+            db.commit()
+
+        refreshed_records = (
+            db.query(models.ExperimentRecord)
+            .filter(models.ExperimentRecord.experiment_id == experiment_id)
+            .order_by(models.ExperimentRecord.time_point)
+            .all()
+        )
+        return avg_error, count, refreshed_records
 
     @staticmethod
     def get_analysis(

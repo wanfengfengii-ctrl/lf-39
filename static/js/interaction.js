@@ -179,7 +179,10 @@
         e.preventDefault();
         const { ok, marks } = ClepsydraForms.validateScaleTable(tbody, ctx.config.capacity);
         if (!ok) {
-          Toast.error('刻度数据有误：请检查时间必须递增、水位必须在容量范围内');
+          const extraMsg = window.__scale_first_time_error
+            ? '；' + window.__scale_first_time_error
+            : '';
+          Toast.error('刻度数据有误：请检查时间必须递增、水位必须在容量范围内' + extraMsg);
           return;
         }
         const btn = form.querySelector('button[type="submit"]');
@@ -524,13 +527,20 @@
           if (data?.ok) {
             cur.status = 'finalized';
             cur.total_error = data.avg_error;
-            cur.records.forEach(r => {
-              const fresh = (data.records || []).find(x => x.id === r.id);
-              if (fresh) {
-                r.computed_flow_rate = fresh.computed_flow_rate;
-                r.time_error = fresh.time_error;
+            cur.records = data.records || cur.records;
+            if (data.project_status) {
+              ctx.project.status = data.project_status;
+              const topBadge = document.querySelector('.project-topbar .status-badge');
+              if (topBadge) {
+                const statusMap = {
+                  draft: '草稿', configured: '已配置', ready: '待实验',
+                  experimenting: '实验中', completed: '已完成'
+                };
+                topBadge.className = 'status-badge status-' + data.project_status;
+                topBadge.textContent = statusMap[data.project_status] || data.project_status;
               }
-            });
+              const project = document.querySelector('.project-topbar');
+            }
             Toast.success(`实验分析完成 · 平均误差 ${data.avg_error}%（${data.record_count} 个节点）`);
             renderAll();
           } else {

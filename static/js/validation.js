@@ -136,6 +136,8 @@
     let prevTime = -Infinity;
     let ok = true;
     const marks = [];
+    let minTime = Infinity;
+    let minTimeInput = null;
 
     for (let i = 0; i < rows.length; i++) {
       const tr = rows[i];
@@ -151,6 +153,8 @@
       if (capacity && w > capacity) { wInput.classList.add('error'); ok = false; continue; }
       if (i > 0 && t <= prevTime) { tInput.classList.add('error'); ok = false; continue; }
 
+      if (t < minTime) { minTime = t; minTimeInput = tInput; }
+
       prevTime = t;
       marks.push({
         mark_index: parseInt(tr.dataset.index, 10) || i,
@@ -158,6 +162,15 @@
         target_water_level: +w.toFixed(3),
       });
     }
+
+    if (ok && Math.abs(minTime) > 1e-9) {
+      if (minTimeInput) minTimeInput.classList.add('error');
+      ok = false;
+      window.__scale_first_time_error = '首个刻度的目标时间必须为 0（对应初始满水时刻）';
+    } else {
+      window.__scale_first_time_error = null;
+    }
+
     return { ok, marks };
   };
 

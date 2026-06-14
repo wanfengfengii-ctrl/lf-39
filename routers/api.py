@@ -155,15 +155,28 @@ async def finalize_experiment(
     db: Session = Depends(get_db),
 ):
     try:
-        avg_error, count = AnalysisService.compute_records(db, project_id, exp_id)
+        avg_error, count, records = AnalysisService.compute_records(db, project_id, exp_id)
     except ValueError as e:
         return JSONResponse(status_code=422, content={"ok": False, "error": str(e)})
 
     analysis = AnalysisService.get_analysis(db, project_id, exp_id)
+    records_out = [
+        {
+            "id": r.id,
+            "time_point": r.time_point,
+            "water_level": r.water_level,
+            "computed_flow_rate": r.computed_flow_rate,
+            "time_error": r.time_error,
+        }
+        for r in records
+    ]
+    project = ProjectService.get_project(db, project_id)
     return {
         "ok": True,
         "avg_error": avg_error,
         "record_count": count,
+        "records": records_out,
+        "project_status": project.status if project else None,
         "analysis": analysis.model_dump(mode="json"),
     }
 

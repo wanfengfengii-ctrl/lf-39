@@ -24,6 +24,9 @@ class ScaleSchemeUpdate(BaseModel):
         times = [m.target_time for m in v]
         if len(set(indices)) != len(indices):
             raise ValueError("刻度序号不能重复")
+        min_time = min(times)
+        if abs(min_time) > 1e-9:
+            raise ValueError("首个刻度的目标时间必须为 0（对应初始满水时刻）")
         for i in range(1, len(times)):
             if times[i] <= times[i - 1]:
                 raise ValueError("目标时间必须严格递增")
