@@ -929,9 +929,17 @@
     const panel = document.getElementById(mode + '-mode');
     if (panel) panel.classList.add('active');
 
+    const url = new URL(window.location);
+    url.searchParams.delete('multi');
+    url.searchParams.delete('mode');
     if (mode === 'multi') {
+      url.searchParams.set('mode', 'multi');
       initMultiVesselMode();
+    } else if (mode === 'robustness') {
+      url.searchParams.set('mode', 'robustness');
+      initRobustnessMode();
     } else if (mode === 'single') {
+      url.searchParams.set('mode', 'single');
       setTimeout(() => {
         const ctx = window.__CTX__;
         if (ctx && ClepsydraCharts) {
@@ -942,9 +950,8 @@
           );
         }
       }, 50);
-    } else if (mode === 'robustness') {
-      initRobustnessMode();
     }
+    window.history.replaceState({}, '', url);
   }
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -959,8 +966,13 @@
 
     const params = new URLSearchParams(window.location.search);
     const raw = window.__APP_DATA__ || {};
-    if (params.get('multi') === '1' || (raw.project?.is_multi_vessel && raw.multi_config?.vessels?.length > 0)) {
+    const modeParam = params.get('mode');
+    if (modeParam === 'robustness') {
+      switchMode('robustness');
+    } else if (modeParam === 'multi' || params.get('multi') === '1' || (raw.project?.is_multi_vessel && raw.multi_config?.vessels?.length > 0)) {
       switchMode('multi');
+    } else if (modeParam === 'single') {
+      switchMode('single');
     }
   });
 </script>

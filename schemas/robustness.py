@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 
 class PerturbationConfigUpdate(BaseModel):
@@ -33,6 +33,40 @@ class PerturbationConfigUpdate(BaseModel):
     simulation_duration: Optional[float] = Field(default=60.0, ge=1.0, le=1440.0)
     time_step: Optional[float] = Field(default=0.5, ge=0.01, le=10.0)
     scenario_count: Optional[int] = Field(default=50, ge=1, le=500)
+
+    @model_validator(mode="after")
+    def check_ranges(self) -> "PerturbationConfigUpdate":
+        errors = []
+        if self.temperature_min is not None and self.temperature_max is not None:
+            if self.temperature_min > self.temperature_max:
+                errors.append(f"温度最小值 ({self.temperature_min}) 不能大于最大值 ({self.temperature_max})")
+        if self.temperature_baseline is not None:
+            if self.temperature_min is not None and self.temperature_baseline < self.temperature_min:
+                errors.append(f"温度基准值 ({self.temperature_baseline}) 不能小于最小值 ({self.temperature_min})")
+            if self.temperature_max is not None and self.temperature_baseline > self.temperature_max:
+                errors.append(f"温度基准值 ({self.temperature_baseline}) 不能大于最大值 ({self.temperature_max})")
+        if self.viscosity_min is not None and self.viscosity_max is not None:
+            if self.viscosity_min > self.viscosity_max:
+                errors.append(f"黏度最小值 ({self.viscosity_min}) 不能大于最大值 ({self.viscosity_max})")
+        if self.viscosity_baseline is not None:
+            if self.viscosity_min is not None and self.viscosity_baseline < self.viscosity_min:
+                errors.append(f"黏度基准值 ({self.viscosity_baseline}) 不能小于最小值 ({self.viscosity_min})")
+            if self.viscosity_max is not None and self.viscosity_baseline > self.viscosity_max:
+                errors.append(f"黏度基准值 ({self.viscosity_baseline}) 不能大于最大值 ({self.viscosity_max})")
+        if self.tilt_angle_min is not None and self.tilt_angle_max is not None:
+            if self.tilt_angle_min > self.tilt_angle_max:
+                errors.append(f"倾斜角最小值 ({self.tilt_angle_min}) 不能大于最大值 ({self.tilt_angle_max})")
+        if self.tilt_angle_baseline is not None:
+            if self.tilt_angle_min is not None and self.tilt_angle_baseline < self.tilt_angle_min:
+                errors.append(f"倾斜角基准值 ({self.tilt_angle_baseline}) 不能小于最小值 ({self.tilt_angle_min})")
+            if self.tilt_angle_max is not None and self.tilt_angle_baseline > self.tilt_angle_max:
+                errors.append(f"倾斜角基准值 ({self.tilt_angle_baseline}) 不能大于最大值 ({self.tilt_angle_max})")
+        if self.simulation_duration is not None and self.time_step is not None:
+            if self.time_step > self.simulation_duration:
+                errors.append(f"时间步长 ({self.time_step}) 不能大于模拟时长 ({self.simulation_duration})")
+        if errors:
+            raise ValueError("; ".join(errors))
+        return self
 
 
 class PerturbationConfigOut(BaseModel):

@@ -434,6 +434,24 @@ class RobustnessService:
         duration = cfg.simulation_duration
         time_step = cfg.time_step
 
+        errors = []
+        if cfg_model.temperature_min > cfg_model.temperature_max:
+            errors.append(f"温度最小值 ({cfg_model.temperature_min}) 大于最大值 ({cfg_model.temperature_max})")
+        if cfg_model.temperature_baseline < cfg_model.temperature_min or cfg_model.temperature_baseline > cfg_model.temperature_max:
+            errors.append(f"温度基准值 ({cfg_model.temperature_baseline}) 超出范围 [{cfg_model.temperature_min}, {cfg_model.temperature_max}]")
+        if cfg_model.viscosity_min > cfg_model.viscosity_max:
+            errors.append(f"黏度最小值 ({cfg_model.viscosity_min}) 大于最大值 ({cfg_model.viscosity_max})")
+        if cfg_model.viscosity_baseline < cfg_model.viscosity_min or cfg_model.viscosity_baseline > cfg_model.viscosity_max:
+            errors.append(f"黏度基准值 ({cfg_model.viscosity_baseline}) 超出范围 [{cfg_model.viscosity_min}, {cfg_model.viscosity_max}]")
+        if cfg_model.tilt_angle_min > cfg_model.tilt_angle_max:
+            errors.append(f"倾斜角最小值 ({cfg_model.tilt_angle_min}) 大于最大值 ({cfg_model.tilt_angle_max})")
+        if cfg_model.tilt_angle_baseline < cfg_model.tilt_angle_min or cfg_model.tilt_angle_baseline > cfg_model.tilt_angle_max:
+            errors.append(f"倾斜角基准值 ({cfg_model.tilt_angle_baseline}) 超出范围 [{cfg_model.tilt_angle_min}, {cfg_model.tilt_angle_max}]")
+        if time_step > duration:
+            errors.append(f"时间步长 ({time_step}) 大于模拟时长 ({duration})")
+        if errors:
+            raise ValidationError("扰动配置无效：" + "; ".join(errors))
+
         if is_multi_vessel:
             vessels = db.query(models.Vessel).filter(
                 models.Vessel.project_id == project_id
